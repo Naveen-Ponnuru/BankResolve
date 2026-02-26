@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Josefin+Sans:wght@300;400;600;700&display=swap');
+
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-primary: "Inter", "Josefin Sans", sans-serif;
+    --color-primary: #2563eb;
+    --color-primary-dark: #1d4ed8;
+    --color-dark: #4C1D95;
+    --color-lighter: #eff6ff;
+    --color-light: #dbeafe;
+    --color-normalbg: #f3f4f6;
+    --color-darkbg: #111827;
+}
+
+/* =====================
+   ENTERPRISE BASE STYLES
+   ===================== */
+
+/* Smooth theme transitions — applies AFTER FOUC prevention script fires */
+html {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Prevent horizontal scroll on mobile */
+body {
+  overflow-x: hidden;
+  font-family: "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Accessible focus ring */
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Smooth scrollbar in tables */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Bank system scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
