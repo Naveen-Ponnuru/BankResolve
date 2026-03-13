@@ -1,9 +1,10 @@
 package com.bankresolve.security;
 
-import com.bankresolve.filter.JwtAuthenticationFilter;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -20,9 +21,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import com.bankresolve.filter.JwtAuthenticationFilter;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * Central Spring Security configuration.
@@ -53,21 +54,48 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> {
+                    // ─── CORS Preflight ───────────────────────────────────
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+
                     // ─── Public endpoints ─────────────────────────────────
                     auth.requestMatchers("/api/auth/**").permitAll();
                     auth.requestMatchers("/api/banks/**").permitAll();
-                    auth.requestMatchers("/actuator/health").permitAll();
-                    auth.requestMatchers("/swagger-ui.html", "/swagger-ui/**",
+                        auth.requestMatchers("/actuator/health").permitAll();
+                        auth.requestMatchers("/swagger-ui.html", "/swagger-ui/**",
                             "/v3/api-docs/**").permitAll();
 
-                    // ─── Role-based access ────────────────────────────────
-                    auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
-                    auth.requestMatchers("/api/manager/**").hasAnyRole("MANAGER", "ADMIN");
-                    auth.requestMatchers("/api/staff/**").hasAnyRole("STAFF", "MANAGER", "ADMIN");
-                    auth.requestMatchers("/api/customer/**").hasAnyRole("CUSTOMER", "STAFF", "MANAGER", "ADMIN");
+                        // ─── Role-based access ────────────────────────────────
+                        auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
+                        auth.requestMatchers("/api/manager/**").hasRole("MANAGER");
+                        auth.requestMatchers("/api/staff/**").hasRole("STAFF");
+                        auth.requestMatchers("/api/customer/**").hasRole("CUSTOMER");
 
-                    // ─── Everything else requires authentication ──────────
-                    auth.anyRequest().authenticated();
+                        // ─── Customer endpoints ───────────────────────────────
+                        auth.requestMatchers("/api/dashboard-summary").hasAnyRole("CUSTOMER", "STAFF", "MANAGER", "ADMIN");
+                        auth.requestMatchers("/api/grievances/my").hasRole("CUSTOMER");
+                        auth.requestMatchers("/api/customer/grievances").hasRole("CUSTOMER");
+
+                        // ─── Staff endpoints ────────────────────────────────
+                        auth.requestMatchers("/api/grievances/bank").hasRole("STAFF");
+
+                        // ─── Manager endpoints ──────────────────────────────
+                        auth.requestMatchers("/api/grievances/high").hasRole("MANAGER");
+
+
+                        // ─── Dashboard endpoints ────────────────────────────
+                        auth.requestMatchers("/api/dashboard-summary").hasAnyRole("CUSTOMER","STAFF","MANAGER","ADMIN");
+                        auth.requestMatchers("/api/grievances", 
+                            "/api/grievances/dashboard-summary", 
+                            "/api/grievances/monthly-trend").hasAnyRole("CUSTOMER","STAFF","MANAGER","ADMIN");
+
+                        // Keep generic grievances access for existing controllers
+                        auth.requestMatchers("/api/grievances/**")
+                            .hasAnyRole("CUSTOMER", "STAFF", "MANAGER", "ADMIN");
+
+                        auth.requestMatchers("/api/notifications/**").authenticated();
+
+                        // ─── Everything else requires authentication ──────────
+                        auth.anyRequest().authenticated();
                 })
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter,
@@ -103,12 +131,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000"));
-        config.setAllowedMethods(Collections.singletonList("*"));
-        config.setAllowedHeaders(Collections.singletonList("*"));
-        config.setExposedHeaders(List.of("Authorization"));
+        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

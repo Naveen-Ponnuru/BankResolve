@@ -7,11 +7,11 @@ import {
   useNavigation,
   useNavigate,
 } from "react-router-dom";
-import authService from "./services/authService.js";
 import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
-import { loginSuccess } from "./store/auth-slice";
+import { loginSuccess, selectIsAuthenticated } from "./store/auth-slice";
 import { selectBank } from "./store/bankSlice";
+import { normalizeRole } from "./utils/roleUtils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
@@ -22,52 +22,62 @@ export default function Login() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const selectedBank = useSelector(selectBank);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
   const [showPassword, setShowPassword] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
-  const from = sessionStorage.getItem("redirectPath") || "/customer/dashboard";
 
+  // Phase 6: Block login page if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  // 1. Handle auth action result (success/fail)
   useEffect(() => {
     if (actionData?.success) {
+      // ✅ HARD RESET: wipe any previous user's state before writing new one.
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      // DEBUG: verify incoming action data
+      console.log("ACTION USER:", actionData.user);
+
+      // Store token and user consistently
+      localStorage.setItem("token", actionData.jwtToken);
+      localStorage.setItem("user", JSON.stringify(actionData.user));
+
       dispatch(
-        loginSuccess({ jwtToken: actionData.jwtToken, user: actionData.user }),
+        loginSuccess({
+          jwtToken: actionData.jwtToken,
+          user: actionData.user,
+          bankCode: actionData.bankCode,
+          bankName: actionData.bankName,
+        }),
       );
-      sessionStorage.removeItem("redirectPath");
-      let targetPath = from;
-
-      if (targetPath === "/" || targetPath === "/login" || targetPath === "") {
-        let roleStr = "CUSTOMER";
-        if (
-          Array.isArray(actionData.user?.roles) &&
-          actionData.user.roles.length > 0
-        ) {
-          roleStr = actionData.user.roles[0].replace("ROLE_", "");
-        } else if (actionData.user?.role) {
-          roleStr = actionData.user.role.replace("ROLE_", "");
-        }
-        switch (roleStr.toUpperCase()) {
-          case "STAFF":
-            targetPath = "/staff/dashboard";
-            break;
-          case "MANAGER":
-            targetPath = "/manager/dashboard";
-            break;
-          case "ADMIN":
-            targetPath = "/admin/dashboard";
-            break;
-          default:
-            targetPath = "/customer/dashboard";
-            break;
-        }
-      }
-
+      // ✅ Phase 6: toast fires ONCE here
       toast.success("Login successful!");
-      setTimeout(() => {
-        navigate(targetPath);
-      }, 100);
+      sessionStorage.removeItem("redirectPath");
+
+      const role = normalizeRole(actionData.user.role);
+      console.log("LOGIN REDIRECT:", actionData.user);
+
+      switch (role) {
+        case "MANAGER":
+          navigate("/manager/dashboard", { replace: true });
+          break;
+        case "STAFF":
+          navigate("/staff/dashboard", { replace: true });
+          break;
+        case "ADMIN":
+          navigate("/admin/dashboard", { replace: true });
+          break;
+        default:
+          navigate("/customer/dashboard", { replace: true });
+      }
     } else if (actionData?.errors) {
       toast.error(actionData.errors.message || "Login failed.");
     }
-  }, [actionData, dispatch, navigate, from]);
+  }, [actionData, dispatch, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 px-4 py-12">
@@ -114,18 +124,8 @@ export default function Login() {
                 autoComplete="email"
                 required
                 aria-label="Email address"
-                aria-invalid={!!formErrors.email}
-                className={`w-full px-4 py-3 rounded-lg border-2 transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-                  formErrors.email
-                    ? "border-red-500 focus:border-red-600 focus:ring-red-200 dark:focus:ring-red-900"
-                    : "border-gray-300 dark:border-gray-600 focus:border-blue-600 focus:ring-blue-200 dark:focus:ring-blue-900"
-                } focus:outline-none focus:ring-2`}
+                className="w-full px-4 py-3 rounded-lg border-2 transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-gray-300 dark:border-gray-600 focus:border-blue-600 focus:ring-blue-200 dark:focus:ring-blue-900 focus:outline-none focus:ring-2"
               />
-              {formErrors.email && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {formErrors.email}
-                </p>
-              )}
             </div>
 
             {/* Password Field */}
@@ -146,12 +146,7 @@ export default function Login() {
                   required
                   minLength={6}
                   aria-label="Password"
-                  aria-invalid={!!formErrors.password}
-                  className={`w-full px-4 py-3 pr-12 rounded-lg border-2 transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-                    formErrors.password
-                      ? "border-red-500 focus:border-red-600 focus:ring-red-200 dark:focus:ring-red-900"
-                      : "border-gray-300 dark:border-gray-600 focus:border-blue-600 focus:ring-blue-200 dark:focus:ring-blue-900"
-                  } focus:outline-none focus:ring-2`}
+                  className="w-full px-4 py-3 pr-12 rounded-lg border-2 transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-gray-300 dark:border-gray-600 focus:border-blue-600 focus:ring-blue-200 dark:focus:ring-blue-900 focus:outline-none focus:ring-2"
                 />
                 <button
                   type="button"
@@ -162,11 +157,6 @@ export default function Login() {
                   <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
                 </button>
               </div>
-              {formErrors.password && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {formErrors.password}
-                </p>
-              )}
             </div>
 
             {/* Remember Me & Forgot Password */}
@@ -191,6 +181,7 @@ export default function Login() {
             </div>
 
             {/* Submit Button */}
+            <input type="hidden" name="bankCode" value={selectedBank?.code || ""} />
             <button
               type="submit"
               disabled={isSubmitting}
@@ -256,40 +247,4 @@ export default function Login() {
       </div>
     </div>
   );
-}
-
-export async function loginAction({ request }) {
-  const data = await request.formData();
-  const loginData = {
-    email: data.get("email"),
-    password: data.get("password"),
-  };
-
-  const errors = {};
-  if (!loginData.email) errors.email = "Email is required";
-  if (!loginData.password) errors.password = "Password is required";
-
-  if (Object.keys(errors).length > 0) {
-    return { success: false, errors };
-  }
-
-  try {
-    const response = await authService.login(
-      loginData.email,
-      loginData.password,
-    );
-    const { user, jwtToken } = response;
-    return { success: true, user, jwtToken };
-  } catch (error) {
-    if (error.response?.status === 401) {
-      return {
-        success: false,
-        errors: { message: "Invalid email or password" },
-      };
-    }
-    throw new Response(
-      error.response?.data?.message || error.message || "Failed to login.",
-      { status: error.response?.status || 500 },
-    );
-  }
 }

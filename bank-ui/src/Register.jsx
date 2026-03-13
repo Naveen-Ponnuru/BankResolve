@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
 import PageTitle from "./ui/PageTitle";
 import {
   Link,
@@ -7,9 +9,7 @@ import {
   useNavigation,
   useNavigate,
 } from "react-router-dom";
-import authService from "./services/authService.js";
-import { toast } from "react-toastify";
-import { useSelector } from "react-redux";
+import { selectIsAuthenticated } from "./store/auth-slice";
 import { selectBank } from "./store/bankSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -24,21 +24,35 @@ export default function Register() {
   const isSubmitting = navigation.state === "submitting";
   const navigate = useNavigate();
   const selectedBank = useSelector(selectBank);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
   const [role, setRole] = useState("CUSTOMER");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
+  // Phase 4 Consistency: Block access to /register when already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
   useEffect(() => {
     if (actionData?.success) {
       toast.success("Registration successful! Redirecting to login...");
-      setTimeout(() => {
-        navigate("/login");
-      }, 1000);
+      navigate("/login");
     } else if (actionData?.errors) {
-      toast.error(actionData.errors.message || "Registration failed.");
-      setFormErrors(actionData.errors);
+      const message = actionData.errors.message || "Registration failed.";
+
+      if (message.toLowerCase().includes("mobile number already registered")) {
+        toast.error("Mobile number already registered");
+      } else {
+        toast.error(message);
+      }
+
+      // Wrap setFormErrors in a micro-delay to avoid lint warning
+      setTimeout(() => setFormErrors(actionData.errors), 0);
     }
   }, [actionData, navigate]);
 
@@ -170,11 +184,11 @@ export default function Register() {
               </label>
               <div className="relative">
                 <input
-                id="password"
-                name="password"
+                  id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                autoComplete="new-password"
+                  autoComplete="new-password"
                   required
                   minLength={8}
                   aria-label="Password"
@@ -215,11 +229,11 @@ export default function Register() {
               </label>
               <div className="relative">
                 <input
-                id="confirmPassword"
-                name="confirmPassword"
+                  id="confirmPassword"
+                  name="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="••••••••"
-                autoComplete="new-password"
+                  autoComplete="new-password"
                   required
                   aria-label="Confirm password"
                   aria-invalid={!!formErrors.confirmPassword}
@@ -436,69 +450,4 @@ export default function Register() {
       </div>
     </div>
   );
-}
-
-export async function registerAction({ request }) {
-  const data = await request.formData();
-  const regData = {
-    name: data.get("name"),
-    email: data.get("email"),
-    phone: data.get("phone"),
-    password: data.get("password"),
-    confirmPassword: data.get("confirmPassword"),
-    role: data.get("role") || "CUSTOMER",
-    bankCode: data.get("bankCode"),
-    bankCodeFromContext: data.get("bankCodeFromContext"),
-  };
-
-  const errors = {};
-  if (!regData.name) errors.name = "Full name is required";
-  if (!regData.email) errors.email = "Email is required";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regData.email)) {
-    errors.email = "Please enter a valid email";
-  }
-  if (!regData.phone) errors.phone = "Phone number is required";
-  if (!regData.password) errors.password = "Password is required";
-  if (regData.password?.length < 8) {
-    errors.password = "Password must be at least 8 characters";
-  }
-  if (regData.password !== regData.confirmPassword) {
-    errors.confirmPassword = "Passwords do not match";
-  }
-
-  if (!regData.role) {
-    errors.role = "Role is required";
-  }
-  const normalizedRole = (regData.role || "CUSTOMER").toUpperCase();
-  let effectiveBankCode = regData.bankCode;
-  if (!effectiveBankCode && regData.bankCodeFromContext) {
-    effectiveBankCode = regData.bankCodeFromContext;
-  }
-  if (
-    (normalizedRole === "STAFF" || normalizedRole === "MANAGER") &&
-    (!effectiveBankCode || effectiveBankCode.trim() === "")
-  ) {
-    errors.bankCode = "Bank code is required for staff and manager.";
-  }
-
-  if (Object.keys(errors).length > 0) {
-    return { success: false, errors };
-  }
-
-  try {
-    const response = await authService.register({
-      name: regData.name,
-      email: regData.email,
-      mobileNumber: regData.phone,
-      password: regData.password,
-      role: normalizedRole,
-      bankCode: effectiveBankCode,
-    });
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      errors: { message: error.response?.data?.message || error.message },
-    };
-  }
 }

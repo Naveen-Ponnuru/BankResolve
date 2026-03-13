@@ -19,7 +19,7 @@ export const useErrorLogger = () => {
                 console.info("Affected User ID:", JSON.parse(user).id || "unknown");
                 console.info("Affected User Role:", JSON.parse(user).role || "unknown");
             }
-        } catch (e) {
+        } catch (_e) {
             // ignore
         }
         console.groupEnd();

@@ -9,6 +9,34 @@ import {
 
 const StatusBadgeWithLabel = ({ status, label, size = "md" }) => {
   const statusConfig = {
+    filed: {
+      color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+      icon: faExclamationCircle,
+      label: "Filed",
+    },
+    pending: {
+      color:
+        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+      icon: faHourglassHalf,
+      label: "Pending",
+    },
+    escalated: {
+      color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+      icon: faExclamationCircle,
+      label: "Escalated",
+    },
+    resolved: {
+      color:
+        "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      icon: faCheckCircle,
+      label: "Resolved",
+    },
+    rejected: {
+      color: "bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-200",
+      icon: faXmarkCircle,
+      label: "Rejected",
+    },
+    // Keep legacy for safety during transition
     open: {
       color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
       icon: faExclamationCircle,
@@ -18,18 +46,7 @@ const StatusBadgeWithLabel = ({ status, label, size = "md" }) => {
       color:
         "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
       icon: faHourglassHalf,
-      label: "In Progress",
-    },
-    resolved: {
-      color:
-        "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      icon: faCheckCircle,
-      label: "Resolved",
-    },
-    closed: {
-      color: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
-      icon: faXmarkCircle,
-      label: "Closed",
+      label: "Pending",
     },
   };
 

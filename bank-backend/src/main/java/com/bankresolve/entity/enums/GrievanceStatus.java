@@ -4,9 +4,9 @@ package com.bankresolve.entity.enums;
  * Grievance lifecycle statuses.
  */
 public enum GrievanceStatus {
-    OPEN,
-    IN_PROGRESS,
+    FILED,
+    PENDING,
     ESCALATED,
     RESOLVED,
-    CLOSED
+    REJECTED
 }

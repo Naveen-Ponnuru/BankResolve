@@ -1,19 +1,21 @@
 package com.bankresolve.security;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.function.Function;
+
+import javax.crypto.SecretKey;
+
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Service;
+
 import com.bankresolve.constants.ApplicationConstants;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Service;
-
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.Map;
-import java.util.function.Function;
 
 /**
  * JWT service — generates, validates, and extracts claims from JWT tokens.
@@ -25,6 +27,7 @@ import java.util.function.Function;
  *   <li>{@code name}    — display name</li>
  *   <li>{@code roles}   — comma-separated authority list (e.g. "ROLE_CUSTOMER")</li>
  *   <li>{@code bankId}  — currently selected bank ID</li>
+ *   <li>{@code bankCode} — currently selected bank code</li>
  * </ul>
  */
 @Service
@@ -39,7 +42,7 @@ public class JwtService {
      * Build a signed JWT with all bank-grievance claims.
      */
     public String generateToken(Long userId, String email, String name,
-                                String roles, Long bankId) {
+                                String roles, Long bankId, String bankCode) {
         return Jwts.builder()
                 .issuer("BankResolve")
                 .subject(email)
@@ -48,6 +51,7 @@ public class JwtService {
                 .claim("name", name)
                 .claim("roles", roles)
                 .claim("bankId", bankId)
+                .claim("bankCode", bankCode)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis()
                         + ApplicationConstants.JWT_EXPIRATION_MS))
@@ -92,6 +96,10 @@ public class JwtService {
 
     public Long extractBankId(String token) {
         return extractClaim(token, claims -> claims.get("bankId", Long.class));
+    }
+
+    public String extractBankCode(String token) {
+        return extractClaim(token, claims -> claims.get("bankCode", String.class));
     }
 
     public String extractName(String token) {

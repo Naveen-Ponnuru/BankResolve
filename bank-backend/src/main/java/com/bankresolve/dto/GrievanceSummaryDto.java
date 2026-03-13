@@ -9,8 +9,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class CustomerDashboardDto {
-    private long totalGrievances;
-    private long openGrievances;
-    private long resolvedGrievances;
+public class GrievanceSummaryDto {
+    private long total;
+    private long pending;
+    private long resolved;
+    private long highRisk;
 }

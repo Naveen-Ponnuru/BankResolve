@@ -60,7 +60,7 @@ public class User extends BaseEntity {
     private String password;
 
     @Size(max = 20)
-    @Column(name = "phone", length = 20)
+    @Column(name = "phone", unique = true, length = 20)
     private String phone;
 
     @Enumerated(EnumType.STRING)
@@ -71,6 +71,9 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private Boolean enabled = true;
+
+    @Column(name = "bank_code", length = 50)
+    private String bankCode;
 
     // ─── Relationships ────────────────────────────────────────────────────────
 

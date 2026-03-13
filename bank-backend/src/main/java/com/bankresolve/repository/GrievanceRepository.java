@@ -14,12 +14,17 @@ import java.util.Optional;
 @Repository
 public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
 
+    boolean existsByReferenceNumber(String referenceNumber);
+
     // ─── By Customer ──────────────────────────────────────────────────────────
     List<Grievance> findByCustomerId(Long customerId);
 
     List<Grievance> findByCustomerIdAndStatus(Long customerId, GrievanceStatus status);
 
     long countByCustomerId(Long customerId);
+
+    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.customer.id = :customerId AND g.status IN :statuses")
+    long countByCustomerIdAndStatuses(@Param("customerId") Long customerId, @Param("statuses") List<GrievanceStatus> statuses);
 
     // ─── By Assigned Staff ────────────────────────────────────────────────────
     List<Grievance> findByAssignedStaffId(Long staffId);
@@ -28,6 +33,12 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
 
     long countByAssignedStaffId(Long staffId);
 
+    // ─── By Assigned Manager ──────────────────────────────────────────────────
+    List<Grievance> findByAssignedManagerId(Long managerId);
+
+    // ─── By Resolver ──────────────────────────────────────────────────────────
+    List<Grievance> findByResolvedById(Long userId);
+
     // ─── By Bank ──────────────────────────────────────────────────────────────
     List<Grievance> findByBankId(Long bankId);
 
@@ -35,18 +46,40 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
 
     long countByBankId(Long bankId);
 
+    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.bank.id = :bankId AND g.status IN :statuses")
+    long countByBankIdAndStatuses(@Param("bankId") Long bankId, @Param("statuses") List<GrievanceStatus> statuses);
+
+    // ─── By Bank Code (String) ────────────────────────────────────────────────
+    List<Grievance> findByBankCode(String bankCode);
+
+    List<Grievance> findByBankCodeAndStatus(String bankCode, GrievanceStatus status);
+
+    List<Grievance> findByBankCodeAndStatusIn(String bankCode, List<GrievanceStatus> statuses);
+
+    List<Grievance> findByBankCodeAndPriority(String bankCode, Priority priority);
+
+    long countByBankCodeAndStatus(String bankCode, GrievanceStatus status);
+
+    long countByBankCodeAndStatusIn(String bankCode, List<GrievanceStatus> statuses);
+
     // ─── By Status / Priority ─────────────────────────────────────────────────
+    List<Grievance> findByStatusInAndTargetSlaBeforeAndIsEscalatedFalse(List<GrievanceStatus> statuses, java.time.Instant now);
+
+    List<Grievance> findByCustomerIdAndPriority(Long customerId, Priority priority);
     List<Grievance> findByStatus(GrievanceStatus status);
 
     List<Grievance> findByPriority(Priority priority);
 
     long countByStatus(GrievanceStatus status);
 
+    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.status IN :statuses")
+    long countByStatuses(@Param("statuses") List<GrievanceStatus> statuses);
+
     // ─── Dashboard KPIs ───────────────────────────────────────────────────────
     long countByCustomerIdAndStatus(Long customerId, GrievanceStatus status);
 
     @Query("SELECT COUNT(g) FROM Grievance g WHERE g.assignedStaff.id = :staffId " +
-           "AND g.status = 'OPEN' AND g.targetSla < CURRENT_TIMESTAMP")
+           "AND g.status = 'FILED' AND g.targetSla < CURRENT_TIMESTAMP")
     long countSlaBreachesByStaffId(@Param("staffId") Long staffId);
 
     @Query("SELECT new com.bankresolve.dto.StaffWorkloadDto(u.fullName, COUNT(g)) " +
@@ -80,4 +113,42 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
     List<Grievance> findByCustomerIdAndBankId(Long customerId, Long bankId);
 
     List<Grievance> findByAssignedStaffIdAndBankId(Long staffId, Long bankId);
+    // ─── Manager Scoped Queries (Restriction: HIGH or ESCALATED) ──────────────
+    @Query("SELECT g FROM Grievance g WHERE g.bankCode = :bankCode AND (g.priority = 'HIGH' OR g.status = 'ESCALATED')")
+    List<Grievance> findManagerScopedGrievances(@Param("bankCode") String bankCode);
+
+    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.bankCode = :bankCode AND (g.priority = 'HIGH' OR g.status = 'ESCALATED')")
+    long countManagerScopedTotal(@Param("bankCode") String bankCode);
+
+    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.bankCode = :bankCode AND (g.priority = 'HIGH' OR g.status = 'ESCALATED') AND g.status IN :statuses")
+    long countManagerScopedByStatuses(@Param("bankCode") String bankCode, @Param("statuses") List<GrievanceStatus> statuses);
+
+    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.bankCode = :bankCode AND (g.priority = 'HIGH' OR g.status = 'ESCALATED') AND g.status = :status")
+    long countManagerScopedByStatus(@Param("bankCode") String bankCode, @Param("status") GrievanceStatus status);
+
+    @Query(value = "SELECT DATE_FORMAT(created_at, '%b') as month, COUNT(*) as count " +
+                   "FROM grievances WHERE bank_code = :bankCode AND (priority = 'HIGH' OR status = 'ESCALATED') " +
+                   "AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) " +
+                   "GROUP BY month, YEAR(created_at), MONTH(created_at) " +
+                   "ORDER BY YEAR(created_at) ASC, MONTH(created_at) ASC", nativeQuery = true)
+    List<Object[]> getManagerMonthlyTrend(@Param("bankCode") String bankCode);
+
+    // ─── Monthly Trends ──────────────────────────────────────────────────────
+    @Query(value = "SELECT DATE_FORMAT(created_at, '%b') as month, COUNT(*) as count " +
+                   "FROM grievances WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) " +
+                   "GROUP BY month, YEAR(created_at), MONTH(created_at) " +
+                   "ORDER BY YEAR(created_at) ASC, MONTH(created_at) ASC", nativeQuery = true)
+    List<Object[]> getGlobalMonthlyTrend();
+
+    @Query(value = "SELECT DATE_FORMAT(created_at, '%b') as month, COUNT(*) as count " +
+                   "FROM grievances WHERE bank_code = :bankCode AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) " +
+                   "GROUP BY month, YEAR(created_at), MONTH(created_at) " +
+                   "ORDER BY YEAR(created_at) ASC, MONTH(created_at) ASC", nativeQuery = true)
+    List<Object[]> getBankMonthlyTrend(@Param("bankCode") String bankCode);
+
+    @Query(value = "SELECT DATE_FORMAT(created_at, '%b') as month, COUNT(*) as count " +
+                   "FROM grievances WHERE customer_id = :customerId AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) " +
+                   "GROUP BY month, YEAR(created_at), MONTH(created_at) " +
+                   "ORDER BY YEAR(created_at) ASC, MONTH(created_at) ASC", nativeQuery = true)
+    List<Object[]> getCustomerMonthlyTrend(@Param("customerId") Long customerId);
 }

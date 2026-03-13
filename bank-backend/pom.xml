@@ -20,7 +20,7 @@
     <name>bank-backend</name>
     <description>Backend Project for Bank Resolve System</description>
 
-    <!-- ✅ Java 21 (same as ecommerce) -->
+    <!-- ✅ Java 21 () -->
     <properties>
         <java.version>21</java.version>
         <lombok.version>1.18.30</lombok.version>

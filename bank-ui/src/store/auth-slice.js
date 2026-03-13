@@ -3,17 +3,16 @@ import { createSlice } from "@reduxjs/toolkit";
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const safeSet = (key, value) => {
   try {
-    localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
-  } catch (e) {
+    localStorage.setItem(
+      key,
+      typeof value === "string" ? value : JSON.stringify(value),
+    );
+  } catch (_e) {
     console.warn("[auth-slice] localStorage write failed:", key, e);
   }
 };
 
-const safeRemove = (key) => {
-  try {
-    localStorage.removeItem(key);
-  } catch (e) { }
-};
+// safeRemove was unused
 
 const safeParse = (key) => {
   try {
@@ -25,14 +24,18 @@ const safeParse = (key) => {
 };
 
 // ─── Initial State (hydrate from localStorage) ───────────────────────────────
-const jwtToken = localStorage.getItem("jwtToken") || null;
+const token = localStorage.getItem("token");
 const parsedUser = safeParse("user");
 
 const initialAuthState = {
-  jwtToken,
+  jwtToken: token,
   user: parsedUser,
-  isAuthenticated: !!jwtToken,
+  bankCode: parsedUser?.bankCode || null,
+  bankName: parsedUser?.bankName || null,
+  isAuthenticated: !!token && !!parsedUser,
 };
+
+// ... console.log stays roughly the same ...
 
 // ─── Slice ──────────────────────────────────────────────────────────────────
 const authSlice = createSlice({
@@ -40,24 +43,28 @@ const authSlice = createSlice({
   initialState: initialAuthState,
   reducers: {
     loginSuccess(state, action) {
-      const { jwtToken, user } = action.payload;
+      const { jwtToken, user, bankCode, bankName } = action.payload;
       state.jwtToken = jwtToken;
       state.user = user;
+      state.bankCode = bankCode || user?.bankCode || null;
+      state.bankName = bankName || user?.bankName || null;
       state.isAuthenticated = true;
 
-      // ✅ CRITICAL: Persist to localStorage so refresh doesn't lose session
-      safeSet("jwtToken", jwtToken);
-      safeSet("user", user);
+      localStorage.setItem("token", jwtToken);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      console.log("AUTH STATE:", state);
     },
 
     logout(state) {
       state.jwtToken = null;
       state.user = null;
+      state.bankCode = null;
+      state.bankName = null;
       state.isAuthenticated = false;
 
-      // ✅ Clear all auth-related storage
-      safeRemove("jwtToken");
-      safeRemove("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
     },
 
     // Optional: update user profile without re-login

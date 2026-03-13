@@ -25,6 +25,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.13.1",
     "react-toastify": "^11.0.5",
+    "recharts": "2.8.0",
     "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
@@ -39,6 +40,10 @@
     "vite": "^8.0.0-beta.13"
   },
   "overrides": {
-    "vite": "^8.0.0-beta.13"
+    "vite": "^8.0.0-beta.13",
+    "recharts": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    }
   }
 }

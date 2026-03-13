@@ -13,9 +13,9 @@ export default function Unauthorized() {
         </p>
         <Link
           to="/"
-          className="mt-6 inline-block text-blue-600 dark:text-blue-400 hover:underline"
+          className="mt-6 inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold no-underline"
         >
-          Go to login
+          Return to Home
         </Link>
       </div>
     </div>

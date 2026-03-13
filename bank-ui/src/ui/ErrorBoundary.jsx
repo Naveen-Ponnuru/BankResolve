@@ -20,12 +20,15 @@ class ErrorBoundary extends React.Component {
     }
 
     handleReload = () => {
-        window.location.reload();
+        // Reset state to attempt re-render without full page reload
+        this.setState({ hasError: false, error: null, errorInfo: null });
     };
 
     render() {
         if (this.state.hasError) {
-            // You can render any custom fallback UI
+            // Check for development mode using Vite's import.meta.env
+            const isDev = import.meta.env.DEV;
+
             return (
                 <div className="min-h-[400px] flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
                     <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-red-100 dark:border-red-900/30 p-8 text-center animate-fade-in-up">
@@ -38,7 +41,7 @@ class ErrorBoundary extends React.Component {
                         </p>
 
                         {/* Optional: Show error details in development */}
-                        {process.env.NODE_ENV === "development" && (
+                        {isDev && (
                             <div className="mb-6 text-left">
                                 <p className="text-xs text-red-500 font-mono bg-red-50 dark:bg-red-900/20 p-3 rounded overflow-x-auto">
                                     {this.state.error?.toString()}

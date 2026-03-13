@@ -32,7 +32,7 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         seedBanks();
-        seedAdminUser();
+        seedInitialUsers();
     }
 
     // ─── Seed Banks ───────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         Bank sbi = Bank.builder()
-                .name("State Bank of India")
+                .name("SBI")
                 .code("SBI001")
                 .build();
 
@@ -58,38 +58,74 @@ public class DataInitializer implements CommandLineRunner {
                 .code("ICICI001")
                 .build();
 
+
+
         bankRepository.save(sbi);
         bankRepository.save(hdfc);
         bankRepository.save(icici);
 
-        log.info("DataInitializer: seeded {} banks (SBI001, HDFC001, ICICI001)", 3);
+        log.info("DataInitializer: seeded 3 banks (SBI001, HDFC001, ICICI001)");
     }
 
     // ─── Seed Admin User ──────────────────────────────────────────────────────
 
-    private void seedAdminUser() {
+    private void seedInitialUsers() {
         if (userRepository.count() > 0) {
-            log.info("DataInitializer: users already exist — skipping admin seed.");
+            log.info("DataInitializer: users already exist — skipping user seeding.");
             return;
         }
 
-        // Admin must belong to a bank — use the first available
-        Bank firstBank = bankRepository.findAll().stream()
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(
-                        "No banks found — run seedBanks() first"));
-
+        // 1. Admin (associated with SBI)
+        Bank sbi = bankRepository.findByCode("SBI001").orElseThrow();
         User admin = User.builder()
                 .fullName("System Administrator")
                 .email("admin@bankresolve.com")
                 .password(passwordEncoder.encode("Admin@1234"))
                 .role(Role.ADMIN)
                 .enabled(true)
-                .bank(firstBank)
+                .bank(sbi)
+                .bankCode("SBI001")
                 .build();
-
         userRepository.save(admin);
 
-        log.info("DataInitializer: seeded admin user → admin@bankresolve.com / Admin@1234");
+        // 2. SBI Staff
+        User sbiStaff = User.builder()
+                .fullName("SBI Staff")
+                .email("sbi@bank.com")
+                .password(passwordEncoder.encode("password123"))
+                .role(Role.STAFF)
+                .enabled(true)
+                .bank(sbi)
+                .bankCode("SBI001")
+                .build();
+        userRepository.save(sbiStaff);
+
+        // 3. HDFC Staff
+        Bank hdfc = bankRepository.findByCode("HDFC001").orElseThrow();
+        User hdfcStaff = User.builder()
+                .fullName("HDFC Staff")
+                .email("hdfc@bank.com")
+                .password(passwordEncoder.encode("password123"))
+                .role(Role.STAFF)
+                .enabled(true)
+                .bank(hdfc)
+                .bankCode("HDFC001")
+                .build();
+        userRepository.save(hdfcStaff);
+
+        // 4. ICICI Staff
+        Bank icici = bankRepository.findByCode("ICICI001").orElseThrow();
+        User iciciStaff = User.builder()
+                .fullName("ICICI Staff")
+                .email("icici@bank.com")
+                .password(passwordEncoder.encode("password123"))
+                .role(Role.STAFF)
+                .enabled(true)
+                .bank(icici)
+                .bankCode("ICICI001")
+                .build();
+        userRepository.save(iciciStaff);
+
+        log.info("DataInitializer: seeded initial users (Admin + Staff for SBI, HDFC, ICICI)");
     }
 }

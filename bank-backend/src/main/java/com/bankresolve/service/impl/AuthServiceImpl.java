@@ -28,7 +28,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
-    // ─── Register ─────────────────────────────────────────────────────────────
+    // ─── Register ─────────────────────────────────────────────────────────
 
     @Override
     @Transactional
@@ -36,6 +36,15 @@ public class AuthServiceImpl implements AuthService {
         // Guard: duplicate email
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email already in use: " + request.getEmail());
+        }
+
+        // Guard: duplicate phone (mobile number)
+        if (request.getMobileNumber() != null && !request.getMobileNumber().isBlank()
+                && userRepository.existsByPhone(request.getMobileNumber())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Mobile number already registered"
+            );
         }
 
         // Resolve target role (default CUSTOMER for backward compatibility)
@@ -50,11 +59,27 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Bank code is required for STAFF, MANAGER, and ADMIN users.");
         }
 
-        // Resolve bank by code when provided (optional for CUSTOMER/ADMIN)
+        if (bankCode != null && !bankCode.isBlank()) {
+            String mappedCode = mapLegacyBankCode(bankCode);
+            if (!mappedCode.equals("HDFC001") && !mappedCode.equals("SBI001") && !mappedCode.equals("ICICI001")) {
+                throw new IllegalArgumentException("Invalid bank code. Supported banks are: HDFC001, SBI001, ICICI001");
+            }
+        }
+
+        // Resolve bank by code when provided (optional for CUSTOMER)
         Bank bank = null;
         if (bankCode != null && !bankCode.isBlank()) {
             bank = bankRepository.findByCode(bankCode)
-                    .orElseThrow(() -> new ResourceNotFoundException("Bank", "code", bankCode));
+                    .orElseGet(() -> {
+                        // Support legacy short codes (e.g. "SBI") by mapping to
+                        // the seeded long codes ("SBI001", etc.) before failing.
+                        String mapped = mapLegacyBankCode(bankCode);
+                        if (!mapped.equals(bankCode)) {
+                            return bankRepository.findByCode(mapped)
+                                    .orElseThrow(() -> new ResourceNotFoundException("Bank", "code", bankCode));
+                        }
+                        throw new ResourceNotFoundException("Bank", "code", bankCode);
+                    });
         }
 
         // Additional safety: non-customer roles must always be linked to a bank
@@ -63,6 +88,9 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // Build and persist the new user with the resolved role
+        // Always derive bankCode from the resolved Bank entity — never accept it from request payload
+        String resolvedBankCode = (bank != null) ? bank.getCode() : null;
+
         User user = User.builder()
                 .fullName(request.getName())
                 .email(request.getEmail())
@@ -71,12 +99,13 @@ public class AuthServiceImpl implements AuthService {
                 .role(resolvedRole)
                 .enabled(true)
                 .bank(bank)
+                .bankCode(resolvedBankCode) // Populated from DB — never from frontend
                 .build();
 
         User savedUser = userRepository.save(user);
 
         Long bankId = savedUser.getBank() != null ? savedUser.getBank().getId() : null;
-        String jwtToken = generateToken(savedUser, bankId);
+        String jwtToken = generateToken(savedUser, bankId, resolvedBankCode);
         return buildAuthResponse(savedUser, jwtToken);
     }
 
@@ -101,19 +130,39 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Long bankId = user.getBank() != null ? user.getBank().getId() : null;
-        String jwtToken = generateToken(user, bankId);
+        String bankCode = user.getBank() != null ? user.getBank().getCode() : user.getBankCode();
+        String jwtToken = generateToken(user, bankId, bankCode);
         return buildAuthResponse(user, jwtToken);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    private String generateToken(User user, Long bankId) {
+    /**
+     * Maps legacy short bank codes used by the earlier UI (e.g. "SBI")
+     * to the long codes seeded in the database (e.g. "SBI001").
+     * If no mapping is needed, the original code is returned.
+     */
+    private String mapLegacyBankCode(String rawCode) {
+        if (rawCode == null) {
+            return null;
+        }
+        String trimmed = rawCode.trim().toUpperCase();
+        return switch (trimmed) {
+            case "SBI" -> "SBI001";
+            case "HDFC" -> "HDFC001";
+            case "ICICI" -> "ICICI001";
+            default -> rawCode;
+        };
+    }
+
+    private String generateToken(User user, Long bankId, String bankCode) {
         return jwtService.generateToken(
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
                 "ROLE_" + user.getRole().name(),
-                bankId
+                bankId,
+                bankCode
         );
     }
 
@@ -124,6 +173,8 @@ public class AuthServiceImpl implements AuthService {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .bankId(user.getBank() != null ? user.getBank().getId() : null)
+                .bankCode(user.getBank() != null ? user.getBank().getCode() : null)
+                .bankName(user.getBank() != null ? user.getBank().getName() : null)
                 .build();
 
         return AuthResponseDto.builder()
@@ -131,6 +182,8 @@ public class AuthServiceImpl implements AuthService {
                 .token(token)
                 .email(user.getEmail())
                 .role(user.getRole())
+                .bankCode(user.getBank() != null ? user.getBank().getCode() : user.getBankCode())
+                .bankName(user.getBank() != null ? user.getBank().getName() : null)
                 .user(userDto)
                 .build();
     }

@@ -142,7 +142,7 @@ const About = () => {
                 year: "2020",
                 title: "Founded",
                 description:
-                  "GrievanceHub was founded with a vision to transform banking.",
+                  "BankResolve was founded with a vision to transform banking.",
               },
               {
                 year: "2021",

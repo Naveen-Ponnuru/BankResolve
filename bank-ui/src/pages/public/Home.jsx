@@ -12,9 +12,19 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useSelector } from "react-redux";
 import { selectBank } from "../../store/bankSlice";
+import { selectIsAuthenticated, selectUser } from "../../store/auth-slice";
+import { normalizeRole } from "../../utils/roleUtils";
 
 const Home = () => {
   const selectedBank = useSelector(selectBank);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const reduxUser = useSelector(selectUser);
+
+  const role = reduxUser ? normalizeRole(reduxUser.role) : null;
+  const dashboardLink = role === "MANAGER" ? "/manager/dashboard" :
+    role === "STAFF" ? "/staff/dashboard" :
+      role === "ADMIN" ? "/admin/dashboard" :
+        "/customer/dashboard";
 
   const features = [
     {
@@ -73,8 +83,8 @@ const Home = () => {
   ];
 
   const stats = [
-    { label: "Grievances Resolved", value: "50,000+" },
-    { label: "Active Users", value: "100,000+" },
+    { label: "Grievances Resolved", value: "0" },
+    { label: "Active Users", value: "8+" },
     { label: "Avg Resolution Time", value: "2.5 Days" },
     { label: "Customer Satisfaction", value: "98%" },
   ];
@@ -102,26 +112,40 @@ const Home = () => {
                 <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
                   Using {selectedBank.name}
                 </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  Change bank from navbar dropdown
-                </p>
+                {!isAuthenticated && (
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    Change bank from navbar dropdown
+                  </p>
+                )}
               </div>
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link
-                  to="/register"
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold flex items-center justify-center sm:justify-start space-x-2"
-                >
-                  <span>Get Started</span>
-                  <FontAwesomeIcon icon={faArrowRight} className="text-sm" />
-                </Link>
-                <Link
-                  to="/login"
-                  className="px-6 py-3 border-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900 transition font-semibold"
-                >
-                  Login
-                </Link>
+                {!isAuthenticated ? (
+                  <>
+                    <Link
+                      to="/register"
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold flex items-center justify-center sm:justify-start space-x-2"
+                    >
+                      <span>Get Started</span>
+                      <FontAwesomeIcon icon={faArrowRight} className="text-sm" />
+                    </Link>
+                    <Link
+                      to="/login"
+                      className="px-6 py-3 border-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900 transition font-semibold"
+                    >
+                      Login
+                    </Link>
+                  </>
+                ) : (
+                  <Link
+                    to={dashboardLink}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold flex items-center justify-center sm:justify-start space-x-2"
+                  >
+                    <span>Go to Dashboard</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="text-sm" />
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -292,17 +316,27 @@ const Home = () => {
             Ready to Resolve Your Issues?
           </h2>
           <p className="text-lg mb-8 opacity-90">
-            Join thousands of customers using GrievanceHub for fast and
+            Join thousands of customers using BankResolve for fast and
             transparent dispute resolution.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/register"
-              className="px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition font-semibold flex items-center justify-center space-x-2"
-            >
-              <span>Register Now</span>
-              <FontAwesomeIcon icon={faCheckCircle} />
-            </Link>
+            {!isAuthenticated ? (
+              <Link
+                to="/register"
+                className="px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition font-semibold flex items-center justify-center space-x-2"
+              >
+                <span>Register Now</span>
+                <FontAwesomeIcon icon={faCheckCircle} />
+              </Link>
+            ) : (
+              <Link
+                to={dashboardLink}
+                className="px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition font-semibold flex items-center justify-center space-x-2"
+              >
+                <span>Go to Dashboard</span>
+                <FontAwesomeIcon icon={faArrowRight} />
+              </Link>
+            )}
             <Link
               to="/contact"
               className="px-6 py-3 border-2 border-white text-white rounded-lg hover:bg-white hover:text-blue-600 transition font-semibold"

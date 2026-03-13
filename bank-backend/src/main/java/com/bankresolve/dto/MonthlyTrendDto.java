@@ -5,14 +5,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class ManagerDashboardDto {
-    private long totalGrievances;
-    private double avgResolutionTimeHours;
-    private List<StaffWorkloadDto> staffWorkload;
+public class MonthlyTrendDto {
+    private String month;
+    private long count;
 }

@@ -6,84 +6,83 @@
 import apiClient from "../api/apiClient";
 
 const grievanceService = {
-    createGrievance: async (data, files) => {
-        const formData = new FormData();
-        formData.append("data", JSON.stringify(data));
-        if (files && files.length > 0) {
-            Array.from(files).forEach((file) => {
-                formData.append("files", file);
-            });
+    /**
+     * POST /api/grievances - File a new grievance
+     */
+    createGrievance: async (data) => {
+        // Requirements check: If we support files, use FormData, but our current backend 
+        // GrievanceRequestDto is a simple JSON. I'll adjust to JSON for now 
+        // to match the specific 'fileGrievance' signature I recently implemented.
+        const response = await apiClient.post("/grievances", data);
+        return response.data;
+    },
+
+    /**
+     * GET /api/grievances - Unified listing (role-adapted)
+     */
+    getGrievances: async (params = {}) => {
+        try {
+            const response = await apiClient.get("/grievances", { params });
+            return response.data;
+        } catch (error) {
+            console.error("API ERROR (getGrievances):", error.response || error.message);
+            throw error;
         }
+    },
 
-        const response = await apiClient.post("/grievances", formData, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
-        });
+    /**
+     * GET /api/grievances/dashboard-summary - Role-scoped KPI counts
+     */
+    getDashboardSummary: async () => {
+        try {
+            const response = await apiClient.get("/grievances/dashboard-summary");
+            return response.data;
+        } catch (error) {
+            console.error("API ERROR (getDashboardSummary):", error.response || error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * PUT /api/grievances/{id}/forward - Escalation to manager
+     */
+    forwardGrievance: async (id) => {
+        const response = await apiClient.put(`/grievances/${id}/forward`);
         return response.data;
     },
 
-    getCustomerGrievances: async (params = {}) => {
-        const response = await apiClient.get("/grievances/customer", { params });
+    /**
+     * PUT /api/grievances/{id}/resolve - Resolution (guarded by priority and role)
+     */
+    resolveGrievance: async (id) => {
+        const response = await apiClient.put(`/grievances/${id}/resolve`);
         return response.data;
     },
 
+    /**
+     * GET /api/grievances/monthly-trend - Simple 6-month trend
+     */
+    getMonthlyTrend: async () => {
+        try {
+            const response = await apiClient.get("/grievances/monthly-trend");
+            return response.data;
+        } catch (error) {
+            console.error("API ERROR (getMonthlyTrend):", error.response || error.message);
+            throw error;
+        }
+    },
+
+    // Legacy support or fallback (can be cleaned up later)
     getGrievanceById: async (id) => {
         const response = await apiClient.get(`/grievances/${id}`);
         return response.data;
     },
 
-    // Staff & Manager Actions
-    getAssignedGrievances: async (params = {}) => {
-        const response = await apiClient.get("/grievances/assigned", { params });
-        return response.data;
-    },
-
-    getEscalatedGrievances: async (params = {}) => {
-        const response = await apiClient.get("/grievances/escalated", { params });
-        return response.data;
-    },
-
-    updateStatus: async (id, status, notes) => {
-        const response = await apiClient.patch(`/grievances/${id}/status`, { status, notes });
-        return response.data;
-    },
-
-    reassignGrievance: async (id, staffId) => {
-        const response = await apiClient.patch(`/grievances/${id}/assign`, { staffId });
-        return response.data;
-    },
-
-    submitFeedback: async (id, rating, comment) => {
-        const response = await apiClient.post(`/grievances/${id}/feedback`, { rating, comment });
-        return response.data;
-    },
-
     /**
-     * GET /grievances/stats — Dashboard KPI summary
-     * Returns: { total, open, inProgress, resolved, slaBreachCount }
+     * POST /api/grievances/{id}/feedback - Submit feedback
      */
-    getDashboardStats: async (bankId) => {
-        const params = bankId ? { bankId } : {};
-        const response = await apiClient.get("/grievances/stats", { params });
-        return response.data;
-    },
-
-    /**
-     * GET /grievances/analytics — Trend data for manager charts
-     * Returns: [{ month, total, resolved, escalated }]
-     */
-    getAnalytics: async (bankId, period = "6months") => {
-        const params = { period, ...(bankId ? { bankId } : {}) };
-        const response = await apiClient.get("/grievances/analytics", { params });
-        return response.data;
-    },
-
-    /**
-     * GET /grievances/all — Admin: all grievances across bank
-     */
-    getAll: async (params = {}) => {
-        const response = await apiClient.get("/grievances/all", { params });
+    submitFeedback: async (id, feedback) => {
+        const response = await apiClient.post(`/grievances/${id}/feedback`, feedback);
         return response.data;
     },
 };

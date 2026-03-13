@@ -19,22 +19,25 @@ import java.time.Instant;
  * │  id                : Long (PK)         │
  * │  bank_id           : Long (FK→Bank)    │
  * │  customer_id       : Long (FK→User)    │
- * │  assigned_staff_id : Long (FK→User)    │
- * │  title             : String            │
- * │  description       : String (TEXT)     │
- * │  status            : VARCHAR(50)       │
- * │  priority          : VARCHAR(50)       │
- * │  created_at        : Instant           │
+ * │  assigned_staff_id   : Long (FK→User)    │
+ * │  assigned_manager_id : Long (FK→User)    │
+ * │  title               : String            │
+ * │  description         : String (TEXT)     │
+ * │  status              : VARCHAR(50)       │
+ * │  priority            : VARCHAR(50)       │
+ * │  created_at          : Instant           │
  * └─────────────────────────────────────────┘
  * </pre>
  */
 @Entity
 @Table(name = "grievances", indexes = {
         @Index(name = "idx_grievance_status",   columnList = "status"),
+        @Index(name = "idx_grievance_bank_code", columnList = "bank_code"),
         @Index(name = "idx_grievance_priority", columnList = "priority"),
         @Index(name = "idx_grievance_bank",     columnList = "bank_id"),
         @Index(name = "idx_grievance_customer", columnList = "customer_id"),
-        @Index(name = "idx_grievance_staff",    columnList = "assigned_staff_id")
+        @Index(name = "idx_grievance_staff",    columnList = "assigned_staff_id"),
+        @Index(name = "idx_grievance_manager",  columnList = "assigned_manager_id")
 })
 @Getter
 @Setter
@@ -56,15 +59,27 @@ public class Grievance extends BaseEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50, columnDefinition = "VARCHAR(50)")
-    @Builder.Default
-    private GrievanceStatus status = GrievanceStatus.OPEN;
+    @Column(name = "reference_number", unique = true, nullable = false, length = 50)
+    private String referenceNumber;
+
+    @Column(name = "category", length = 100)
+    private String category;
+
+    @Column(name = "transaction_amount", precision = 19, scale = 2)
+    private java.math.BigDecimal transactionAmount;
+
+    @Column(name = "bank_code", length = 50)
+    private String bankCode;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50, columnDefinition = "VARCHAR(50)")
     @Builder.Default
-    private Priority priority = Priority.MEDIUM;
+    private GrievanceStatus status = GrievanceStatus.FILED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50, columnDefinition = "VARCHAR(50)")
+    @Builder.Default
+    private Priority priority = Priority.NORMAL;
 
     // ─── Relationships ────────────────────────────────────────────────────────
 
@@ -78,6 +93,11 @@ public class Grievance extends BaseEntity {
                 foreignKey = @ForeignKey(name = "fk_grievance_staff"))
     private User assignedStaff;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_manager_id",
+                foreignKey = @ForeignKey(name = "fk_grievance_manager"))
+    private User assignedManager;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "bank_id", nullable = false,
                 foreignKey = @ForeignKey(name = "fk_grievance_bank"))
@@ -87,6 +107,25 @@ public class Grievance extends BaseEntity {
     @Column(name = "resolved_at")
     private Instant resolvedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resolved_by_id",
+                foreignKey = @ForeignKey(name = "fk_grievance_resolved_by"))
+    private User resolvedBy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "resolved_role", length = 50)
+    private com.bankresolve.entity.enums.Role resolvedRole;
+
     @Column(name = "target_sla")
     private Instant targetSla;
+
+    @Column(name = "feedback_rating")
+    private Integer feedbackRating;
+
+    @Column(name = "feedback_comment", columnDefinition = "TEXT")
+    private String feedbackComment;
+
+    @Column(name = "is_escalated", nullable = false)
+    @Builder.Default
+    private Boolean isEscalated = false;
 }

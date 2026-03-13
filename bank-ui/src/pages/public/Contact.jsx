@@ -39,25 +39,25 @@ const Contact = () => {
       city: "Mumbai",
       address: "101, Business Park, Bandra Kurla Complex",
       phone: "+91-22-1234-5678",
-      email: "mumbai@grievancehub.com",
+      email: "mumbai@bankresolve.com",
     },
     {
       city: "Bangalore",
       address: "Suite 500, Tech Tower, Indranagar",
       phone: "+91-80-1234-5678",
-      email: "bangalore@grievancehub.com",
+      email: "bangalore@bankresolve.com",
     },
     {
       city: "Delhi",
       address: "Floor 12, Corporate Hub, Connaught Place",
       phone: "+91-11-1234-5678",
-      email: "delhi@grievancehub.com",
+      email: "delhi@bankresolve.com",
     },
     {
       city: "Chennai",
       address: "Level 5, Tech Park Drive, Anna Nagar",
       phone: "+91-44-1234-5678",
-      email: "chennai@grievancehub.com",
+      email: "chennai@bankresolve.com",
     },
   ];
 
@@ -135,10 +135,10 @@ const Contact = () => {
                 Response within 2-4 hours
               </p>
               <a
-                href="mailto:support@grievancehub.com"
+                href="mailto:support@bankresolve.com"
                 className="text-green-600 dark:text-green-400 font-semibold hover:underline"
               >
-                support@grievancehub.com
+                support@bankresolve.com
               </a>
             </div>
 
@@ -263,7 +263,7 @@ const Contact = () => {
                       <span>{location.address}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <FontAwesomeIcon
+                     `` <FontAwesomeIcon
                         icon={faPhone}
                         className="text-blue-600 dark:text-blue-400"
                       />

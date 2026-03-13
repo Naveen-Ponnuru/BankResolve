@@ -1,15 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 // WebSocket Integration Placeholder
 // Designed to be swapped with Socket.io or native WebSocket
 export const useLiveStatus = (grievanceId) => {
-    const [liveStatus, setLiveStatus] = useState(null);
-    const [isConnected, setIsConnected] = useState(false);
+    const [liveStatus] = useState(null);
+    // Use state initializer for mock connection
+    const [isConnected, setIsConnected] = useState(() => !!grievanceId);
 
     const WS_URL = import.meta.env.VITE_WS_URL || 'wss://api.bankgrievance.local/realtime';
 
     useEffect(() => {
-        if (!grievanceId) return;
+        if (!grievanceId) {
+            setIsConnected(false);
+            return;
+        }
 
         // Placeholder for actual WebSocket setup
         /*
@@ -27,7 +31,7 @@ export const useLiveStatus = (grievanceId) => {
         return () => socket.close();
         */
 
-        // Mock connection
+        // Mock connection sync
         setIsConnected(true);
 
         return () => setIsConnected(false);

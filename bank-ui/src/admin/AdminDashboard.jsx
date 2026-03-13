@@ -8,7 +8,6 @@ import {
   faServer,
   faGear,
   faShieldHalved,
-  faChartBar,
   faBuilding,
   faGlobe,
   faToggleOn,
@@ -50,7 +49,6 @@ const AdminDashboard = () => {
 
   const selectedBank = useSelector(selectBank);
   const availableBanks = useSelector(selectAvailableBanks);
-  const user = useSelector(selectUser);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -66,7 +64,7 @@ const AdminDashboard = () => {
       setIsLoading(false);
     }, 1200);
     return () => clearTimeout(timer);
-  }, []);
+  }, [availableBanks.length]);
 
   const handleAddUser = (e) => {
     e.preventDefault();
@@ -228,8 +226,8 @@ const AdminDashboard = () => {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center space-x-2 px-5 py-3.5 text-sm font-semibold border-b-2 transition-colors ${activeTab === tab.key
-                  ? "border-blue-600 text-blue-600 dark:text-blue-400"
-                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                ? "border-blue-600 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 }`}
               aria-selected={activeTab === tab.key}
             >
