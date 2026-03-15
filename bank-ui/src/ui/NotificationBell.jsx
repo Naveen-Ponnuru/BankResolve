@@ -5,6 +5,15 @@ import { faBell, faCircle } from "@fortawesome/free-solid-svg-icons";
 import apiClient from "../api/apiClient";
 import { setNotifications, addNotification, markRead, markAllAsRead } from "../store/notification-slice";
 
+const formatTime = (createdAt) => {
+    if (!createdAt) return "";
+    const diff = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+};
+
 const NotificationBell = () => {
     const dispatch = useDispatch();
     const { user } = useSelector((s) => s.auth);
@@ -59,14 +68,7 @@ const NotificationBell = () => {
         apiClient.put(`/notifications/${id}/read`).catch(() => { });
     };
 
-    const formatTime = (createdAt) => {
-        if (!createdAt) return "";
-        const diff = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
-        if (diff < 60) return `${diff}s ago`;
-        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-        return `${Math.floor(diff / 86400)}d ago`;
-    };
+
 
     const categoryIcon = (category) => {
         switch (category) {

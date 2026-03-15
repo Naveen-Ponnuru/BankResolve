@@ -57,7 +57,7 @@ const DashboardOverview = () => {
         fetchGrievances();
     }, [fetchGrievances]);
 
-    const handleAction = async (id, action) => {
+    const handleAction = async (id, action, payload = null) => {
         if (isProcessing) return;
         setIsProcessing(true);
         try {
@@ -67,6 +67,9 @@ const DashboardOverview = () => {
             } else if (action === 'RESOLVE') {
                 await grievanceService.resolveGrievance(id);
                 toast.success(`Grievance #${id} marked as resolved.`);
+            } else if (action === 'UPDATE_STATUS') {
+                await grievanceService.updateStatus(id, payload);
+                toast.success(`Grievance #${id} status updated to ${payload}.`);
             }
             fetchInitialData();
             fetchGrievances();
@@ -103,12 +106,35 @@ const DashboardOverview = () => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'RESOLVED': return 'text-green-600 bg-green-100';
-            case 'ESCALATED': return 'text-orange-600 bg-orange-100';
-            case 'PENDING': return 'text-yellow-600 bg-yellow-100';
-            case 'REJECTED': return 'text-gray-600 bg-gray-100';
-            default: return 'text-blue-600 bg-blue-100';
+            case 'FILED': return 'bg-blue-50 text-blue-700 border-blue-200';
+            case 'PENDING': return 'bg-orange-50 text-orange-700 border-orange-200';
+            case 'ACCEPTED': return 'bg-purple-50 text-purple-700 border-purple-200';
+            case 'IN_PROGRESS': return 'bg-blue-50 text-blue-700 border-blue-200';
+            case 'ESCALATED': return 'bg-orange-50 text-orange-700 border-orange-200';
+            case 'RESOLVED': return 'bg-green-50 text-green-700 border-green-200';
+            case 'REJECTED': return 'bg-red-50 text-red-700 border-red-200';
+            default: return 'bg-gray-50 text-gray-700 border-gray-200';
         }
+    };
+
+    const getDotColor = (status) => {
+        switch (status) {
+            case 'RESOLVED': return 'bg-green-500';
+            case 'PENDING':
+            case 'ESCALATED': return 'bg-orange-500';
+            case 'IN_PROGRESS':
+            case 'FILED': return 'bg-blue-500';
+            case 'REJECTED': return 'bg-red-500';
+            case 'ACCEPTED': return 'bg-purple-500';
+            default: return 'bg-gray-500';
+        }
+    };
+
+    const formatStatus = (status) => {
+        if (!status) return '';
+        return status.split('_').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ');
     };
 
     return (
@@ -152,6 +178,8 @@ const DashboardOverview = () => {
                                 <option value="">All Statuses</option>
                                 <option value="FILED">Filed</option>
                                 <option value="PENDING">Pending</option>
+                                <option value="ACCEPTED">Accepted</option>
+                                <option value="IN_PROGRESS">In Progress</option>
                                 <option value="ESCALATED">Escalated</option>
                                 <option value="RESOLVED">Resolved</option>
                                 <option value="REJECTED">Rejected</option>
@@ -237,8 +265,9 @@ const DashboardOverview = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(g.status)}`}>
-                                                {g.status}
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(g.status)}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${getDotColor(g.status)}`}></span>
+                                                {formatStatus(g.status)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-500">
@@ -257,33 +286,52 @@ const DashboardOverview = () => {
                                             </td>
                                         )}
                                         <td className="px-6 py-4 text-right">
-                                            {user?.role === 'STAFF' && g.priority === 'HIGH' && g.status !== 'RESOLVED' && g.status !== 'ESCALATED' && (
-                                                <button
-                                                    onClick={() => handleAction(g.id, 'FORWARD')}
-                                                    className="text-orange-600 hover:text-orange-700 font-bold text-sm"
-                                                    disabled={isProcessing}
-                                                >
-                                                    Forward
-                                                </button>
-                                            )}
-
-                                            {((user?.role === 'MANAGER' && (g.status === 'ESCALATED' || g.priority === 'HIGH')) ||
-                                                (user?.role === 'STAFF' && g.priority === 'NORMAL') ||
-                                                (user?.role === 'ADMIN')) && g.status !== 'RESOLVED' && (
-                                                    <button
-                                                        onClick={() => handleAction(g.id, 'RESOLVE')}
-                                                        className="text-green-600 hover:text-green-700 font-bold text-sm"
-                                                        disabled={isProcessing}
-                                                    >
-                                                        Resolve
-                                                    </button>
-                                                )}
-
-                                            {((user?.role === 'CUSTOMER') ||
-                                                (user?.role === 'STAFF' && g.priority === 'HIGH' && g.status === 'ESCALATED' && g.status !== 'RESOLVED') ||
-                                                (g.status === 'RESOLVED')) && (
+                                            <div className="flex items-center justify-end space-x-2">
+                                                {/* Status Update Dropdown for STAFF/MANAGER */}
+                                                {((user?.role === 'STAFF' || user?.role === 'MANAGER' || user?.role === 'ADMIN')) && g.status !== 'RESOLVED' && g.status !== 'REJECTED' ? (
+                                                    <>
+                                                        <select
+                                                            className="text-xs bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 rounded-lg py-1.5 px-3 focus:ring-0 appearance-none cursor-pointer pr-8 bg-no-repeat bg-[right_0.5rem_center] dark:text-white"
+                                                            style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")` }}
+                                                            value={g.status}
+                                                            onChange={(e) => handleAction(g.id, 'UPDATE_STATUS', e.target.value)}
+                                                            disabled={isProcessing}
+                                                        >
+                                                            <option value="PENDING">Pending</option>
+                                                            <option value="ACCEPTED">Accepted</option>
+                                                            <option value="IN_PROGRESS">In Progress</option>
+                                                            <option value="RESOLVED">Resolved</option>
+                                                            <option value="REJECTED">Rejected</option>
+                                                            {g.status === 'ESCALATED' && <option value="ESCALATED">Escalated</option>}
+                                                        </select>
+                                                        
+                                                        {/* Reject Button (X) */}
+                                                        <button
+                                                            onClick={() => handleAction(g.id, 'UPDATE_STATUS', 'REJECTED')}
+                                                            title="Reject Grievance"
+                                                            className="p-1.5 bg-red-50 text-red-500 border border-red-100 rounded-lg hover:bg-red-100 transition-colors"
+                                                            disabled={isProcessing}
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </>
+                                                ) : (
                                                     <span className="text-gray-400 italic text-sm">View Only</span>
                                                 )}
+
+                                                {/* Quick Forward for STAFF */}
+                                                {user?.role === 'STAFF' && g.priority === 'HIGH' && g.status !== 'RESOLVED' && g.status !== 'ESCALATED' && (
+                                                    <button
+                                                        onClick={() => handleAction(g.id, 'FORWARD')}
+                                                        className="px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-100 rounded-lg font-bold text-xs hover:bg-orange-100 transition-colors"
+                                                        disabled={isProcessing}
+                                                    >
+                                                        Forward
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

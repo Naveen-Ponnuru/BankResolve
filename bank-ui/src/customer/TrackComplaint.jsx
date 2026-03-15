@@ -21,18 +21,18 @@ const Timeline = ({ events }) => {
                             <div className="relative flex space-x-3">
                                 <div>
                                     <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white dark:ring-gray-800 ${event.isComplete ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                                        {event.isComplete ? (
-                                            <FontAwesomeIcon icon={faCheckCircle} className="text-white h-5 w-5" />
-                                        ) : (
-                                            <span className="h-2.5 w-2.5 bg-transparent rounded-full" />
-                                        )}
+                                        <FontAwesomeIcon icon={event.icon} className="text-white h-4 w-4" />
                                     </span>
                                 </div>
                                 <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
                                     <div>
                                         <p className="text-sm font-medium text-gray-900 dark:text-white">
                                             {event.title}{' '}
-                                            {event.description && <span className="font-normal text-gray-500 dark:text-gray-400 block mt-1">{event.description}</span>}
+                                            {event.isComplete && event.description && (
+                                                <span className="font-normal text-gray-500 dark:text-gray-400 block mt-1 text-xs">
+                                                    {event.description}
+                                                </span>
+                                            )}
                                         </p>
                                     </div>
                                     <div className="text-right text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
@@ -51,71 +51,65 @@ const Timeline = ({ events }) => {
 const TrackComplaint = () => {
     const [searchId, setSearchId] = useState("");
     const [complaint, setComplaint] = useState(null);
+    const [history, setHistory] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
 
-    const handleSearch = async (e) => {
-        e.preventDefault();
-        if (!searchId.trim()) return;
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+        if (id) {
+            setSearchId(id);
+            performSearch(id);
+        }
+    }, []);
 
+    const performSearch = async (id) => {
         setIsSearching(true);
         setHasSearched(true);
-
         try {
-            const result = await grievanceService.getGrievanceById(searchId);
-            setComplaint(result);
+            const [details, historyData] = await Promise.all([
+                grievanceService.getGrievanceById(id),
+                grievanceService.getGrievanceHistory(id)
+            ]);
+            setComplaint(details);
+            setHistory(historyData);
         } catch (error) {
             console.error("Tracking error:", error);
             setComplaint(null);
+            setHistory([]);
             toast.error(error.response?.data?.message || "Complaint not found or access denied");
         } finally {
             setIsSearching(false);
         }
     };
 
-    const getTimeline = (c) => {
-        const timeline = [
-            { id: 1, title: "Grievance Filed", date: new Date(c.createdAt).toLocaleString(), isComplete: true }
+    const handleSearch = (e) => {
+        e.preventDefault();
+        if (!searchId.trim()) return;
+        performSearch(searchId);
+    };
+
+    const getTimeline = () => {
+        // Steps from requirement: Complaint Filed, Accepted by Staff, In Progress, Resolved
+        const requiredSteps = [
+            { id: 'FILED', title: 'Complaint Filed', icon: faSearch },
+            { id: 'ACCEPTED', title: 'Accepted by Staff', icon: faUserTie },
+            { id: 'IN_PROGRESS', title: 'In Progress', icon: faClockRotateLeft },
+            { id: 'RESOLVED', title: 'Resolved', icon: faCheckCircle }
         ];
 
-        if (c.assignedStaffName) {
-            timeline.push({
-                id: 2,
-                title: "Assigned to Staff",
-                description: `Assigned to ${c.assignedStaffName}`,
-                date: new Date(c.createdAt).toLocaleString(),
-                isComplete: true
-            });
-        }
-
-        if (c.status === "ESCALATED" || c.assignedManagerId) {
-            timeline.push({
-                id: 3,
-                title: "Escalated to Manager",
-                description: c.assignedManagerName ? `Under review by ${c.assignedManagerName}` : "Awaiting manager assignment",
-                date: "Pending Action",
-                isComplete: !!c.assignedManagerId
-            });
-        }
-
-        if (c.status === "RESOLVED") {
-            timeline.push({
-                id: 4,
-                title: "Grievance Resolved",
-                description: "The issue has been closed and the customer notified.",
-                date: c.resolvedAt ? new Date(c.resolvedAt).toLocaleString() : "Recently",
-                isComplete: true
-            });
-        } else {
-            timeline.push({
-                id: 5,
-                title: "Resolution Pending",
-                date: "Pending",
-                isComplete: false
-            });
-        }
-
-        return timeline;
+        return requiredSteps.map((step) => {
+            const historyEntry = history.find(h => h.status === step.id);
+            return {
+                id: step.id,
+                title: step.title,
+                description: historyEntry?.note || (historyEntry ? `Status updated to ${step.title}` : ''),
+                date: historyEntry ? new Date(historyEntry.timestamp).toLocaleString() : 'Pending',
+                isComplete: !!historyEntry,
+                icon: step.icon
+            };
+        });
     };
 
     return (
@@ -225,7 +219,7 @@ const TrackComplaint = () => {
                                 Action History
                             </h4>
                             <div className="bg-gray-50/30 dark:bg-gray-900/30 rounded-2xl p-6 border border-gray-100 dark:border-gray-800">
-                                <Timeline events={getTimeline(complaint)} />
+                                <Timeline events={getTimeline()} />
                             </div>
                         </div>
                     </div>

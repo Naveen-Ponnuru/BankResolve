@@ -61,8 +61,9 @@ public class AuthServiceImpl implements AuthService {
 
         if (bankCode != null && !bankCode.isBlank()) {
             String mappedCode = mapLegacyBankCode(bankCode);
-            if (!mappedCode.equals("HDFC001") && !mappedCode.equals("SBI001") && !mappedCode.equals("ICICI001")) {
-                throw new IllegalArgumentException("Invalid bank code. Supported banks are: HDFC001, SBI001, ICICI001");
+            // Validate against DB instead of a hardcoded whitelist
+            if (!bankRepository.existsByCode(mappedCode)) {
+                throw new IllegalArgumentException("Invalid bank code: " + mappedCode + ". Please select a valid bank.");
             }
         }
 

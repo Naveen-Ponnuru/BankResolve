@@ -38,6 +38,7 @@ const SLATimer = ({ targetDate, status, isEscalated }) => {
 
     useEffect(() => {
         if (status === "RESOLVED" || status === "ESCALATED" || isEscalated) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setState(calculateTimeLeft(targetDate, status, isEscalated));
             return;
         }

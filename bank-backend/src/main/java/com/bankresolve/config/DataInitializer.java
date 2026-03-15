@@ -11,15 +11,6 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-/**
- * Seeds the database with initial data on application startup.
- *
- * Inserts:
- *  - 2 sample banks (SBI001, HDFC001) if the banks table is empty
- *  - 1 admin user (admin@bankresolve.com / Admin@1234) if no users exist
- *
- * Safe to rerun — all operations are guarded by existence checks.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -35,97 +26,50 @@ public class DataInitializer implements CommandLineRunner {
         seedInitialUsers();
     }
 
-    // ─── Seed Banks ───────────────────────────────────────────────────────────
-
     private void seedBanks() {
         if (bankRepository.count() > 0) {
             log.info("DataInitializer: banks already seeded — skipping.");
             return;
         }
 
-        Bank sbi = Bank.builder()
-                .name("SBI")
-                .code("SBI001")
-                .build();
+        Bank hdfc = Bank.builder().name("HDFC Bank").code("HDFC001").build();
+        Bank icici = Bank.builder().name("ICICI Bank").code("ICICI001").build();
+        Bank sbi = Bank.builder().name("SBI").code("SBI001").build();
+        Bank axis = Bank.builder().name("Axis Bank").code("AXIS001").build();
 
-        Bank hdfc = Bank.builder()
-                .name("HDFC Bank")
-                .code("HDFC001")
-                .build();
-
-        Bank icici = Bank.builder()
-                .name("ICICI Bank")
-                .code("ICICI001")
-                .build();
-
-
-
-        bankRepository.save(sbi);
         bankRepository.save(hdfc);
         bankRepository.save(icici);
+        bankRepository.save(sbi);
+        bankRepository.save(axis);
 
-        log.info("DataInitializer: seeded 3 banks (SBI001, HDFC001, ICICI001)");
+        log.info("DataInitializer: seeded 4 banks (HDFC Bank, ICICI Bank, SBI, Axis Bank)");
     }
 
-    // ─── Seed Admin User ──────────────────────────────────────────────────────
-
     private void seedInitialUsers() {
-        if (userRepository.count() > 0) {
-            log.info("DataInitializer: users already exist — skipping user seeding.");
+        Bank sbi = bankRepository.findByCode("SBI001").orElseThrow();
+
+        seedUserIfMissing("admin@bank.com", "System Administrator", "password123", Role.ADMIN, sbi, "SBI001");
+        seedUserIfMissing("manager@bank.com", "Bank Manager", "password123", Role.MANAGER, sbi, "SBI001");
+        seedUserIfMissing("staff@bank.com", "Bank Staff", "password123", Role.STAFF, sbi, "SBI001");
+        seedUserIfMissing("customer@bank.com", "Demo Customer", "password123", Role.CUSTOMER, sbi, "SBI001");
+
+        log.info("DataInitializer: verified demo users existence");
+    }
+
+    private void seedUserIfMissing(String email, String name, String password, Role role, Bank bank, String bankCode) {
+        if (userRepository.existsByEmail(email)) {
             return;
         }
-
-        // 1. Admin (associated with SBI)
-        Bank sbi = bankRepository.findByCode("SBI001").orElseThrow();
-        User admin = User.builder()
-                .fullName("System Administrator")
-                .email("admin@bankresolve.com")
-                .password(passwordEncoder.encode("Admin@1234"))
-                .role(Role.ADMIN)
+        User user = User.builder()
+                .fullName(name)
+                .email(email)
+                .password(passwordEncoder.encode(password))
+                .role(role)
                 .enabled(true)
-                .bank(sbi)
-                .bankCode("SBI001")
+                .bank(bank)
+                .bankCode(bankCode)
                 .build();
-        userRepository.save(admin);
-
-        // 2. SBI Staff
-        User sbiStaff = User.builder()
-                .fullName("SBI Staff")
-                .email("sbi@bank.com")
-                .password(passwordEncoder.encode("password123"))
-                .role(Role.STAFF)
-                .enabled(true)
-                .bank(sbi)
-                .bankCode("SBI001")
-                .build();
-        userRepository.save(sbiStaff);
-
-        // 3. HDFC Staff
-        Bank hdfc = bankRepository.findByCode("HDFC001").orElseThrow();
-        User hdfcStaff = User.builder()
-                .fullName("HDFC Staff")
-                .email("hdfc@bank.com")
-                .password(passwordEncoder.encode("password123"))
-                .role(Role.STAFF)
-                .enabled(true)
-                .bank(hdfc)
-                .bankCode("HDFC001")
-                .build();
-        userRepository.save(hdfcStaff);
-
-        // 4. ICICI Staff
-        Bank icici = bankRepository.findByCode("ICICI001").orElseThrow();
-        User iciciStaff = User.builder()
-                .fullName("ICICI Staff")
-                .email("icici@bank.com")
-                .password(passwordEncoder.encode("password123"))
-                .role(Role.STAFF)
-                .enabled(true)
-                .bank(icici)
-                .bankCode("ICICI001")
-                .build();
-        userRepository.save(iciciStaff);
-
-        log.info("DataInitializer: seeded initial users (Admin + Staff for SBI, HDFC, ICICI)");
+        userRepository.save(user);
+        log.info("DataInitializer: seeded user {}", email);
     }
 }

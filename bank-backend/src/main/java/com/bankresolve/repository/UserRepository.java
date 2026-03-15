@@ -26,4 +26,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countByRole(Role role);
 
     long countByEnabledTrue();
+
+    List<User> findByRoleAndBankCode(Role role, String bankCode);
+
+    long countByBankCode(String bankCode);
 }

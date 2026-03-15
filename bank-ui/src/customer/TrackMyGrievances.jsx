@@ -5,6 +5,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as faStarRegular } from "@fortawesome/free-regular-svg-icons";
 import { faSearch, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { useNavigate } from "react-router-dom";
 import grievanceService from "../services/grievanceService";
 import StatusBadgeWithLabel from "../ui/StatusBadgeWithLabel";
 import SkeletonLoader from "../ui/SkeletonLoader";
@@ -12,6 +13,7 @@ import EmptyState from "../ui/EmptyState";
 import { toast } from "react-toastify";
 
 const TrackMyGrievances = () => {
+    const navigate = useNavigate();
     const [grievances, setGrievances] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [submittingId, setSubmittingId] = useState(null);
@@ -19,8 +21,7 @@ const TrackMyGrievances = () => {
     const fetchGrievances = async () => {
         try {
             setIsLoading(true);
-            const data = await grievanceService.getGrievances();
-            // Backend filtered for customer, but we ensure sorting
+            const data = await grievanceService.getCustomerGrievances();
             setGrievances(data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
         } catch (error) {
             console.error("Error fetching grievances:", error);
@@ -42,15 +43,24 @@ const TrackMyGrievances = () => {
                 comment: `Submitted via star rating on ${new Date().toLocaleDateString()}`
             });
             toast.success("Thank you for your feedback!");
-            // Refresh local state
-            setGrievances(prev => prev.map(g =>
-                g.id === id ? { ...g, feedbackRating: rating } : g
-            ));
+            fetchGrievances();
         } catch (error) {
             console.error("Error submitting feedback:", error);
             toast.error(error.response?.data?.message || "Failed to submit feedback");
         } finally {
             setSubmittingId(null);
+        }
+    };
+
+    const handleWithdraw = async (id) => {
+        if (!window.confirm("Are you sure you want to withdraw this grievance? This action cannot be undone.")) return;
+        try {
+            await grievanceService.withdrawGrievance(id);
+            toast.success("Grievance withdrawn successfully");
+            fetchGrievances();
+        } catch (error) {
+            console.error("Error withdrawing grievance:", error);
+            toast.error(error.response?.data?.message || "Failed to withdraw grievance");
         }
     };
 
@@ -88,9 +98,9 @@ const TrackMyGrievances = () => {
         <div className="space-y-6 animate-fade-in">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Track Your Grievances</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Grievances</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        View real-time status and provide feedback once resolved.
+                        View real-time status and track your filed complaints.
                     </p>
                 </div>
                 <div className="flex items-center space-x-2 text-xs font-semibold px-3 py-1.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg">
@@ -111,52 +121,65 @@ const TrackMyGrievances = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Reference No</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">ID</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Subject</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Category</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Date</th>
                                     <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Priority</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Date Filed</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Feedback</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {grievances.map((g) => (
                                     <tr key={g.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
                                         <td className="px-6 py-4">
-                                            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                                                {g.referenceNumber}
+                                            <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                                #{g.id}
+                                            </span>
+                                            <div className="text-[10px] text-gray-400 font-mono">{g.referenceNumber}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-sm text-gray-900 dark:text-white font-medium">
+                                                {g.title}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                {g.category}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-sm text-gray-900 dark:text-white">
+                                                {new Date(g.createdAt).toLocaleDateString()}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <StatusBadgeWithLabel status={g.status} size="sm" />
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${g.priority === 'HIGH'
-                                                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                                                : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                                }`}>
-                                                {g.priority}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-sm text-gray-900 dark:text-white font-medium">
-                                                    {new Date(g.createdAt).toLocaleDateString()}
-                                                </span>
-                                                <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                                                    {new Date(g.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end space-x-4">
+                                                {g.status === "RESOLVED" && (
+                                                    <StarRating
+                                                        rating={g.feedbackRating || 0}
+                                                        grievanceId={g.id}
+                                                        disabled={!!g.feedbackRating || submittingId === g.id}
+                                                    />
+                                                )}
+                                                {["FILED", "PENDING", "ACCEPTED", "IN_PROGRESS"].includes(g.status) && (
+                                                    <button 
+                                                        onClick={() => handleWithdraw(g.id)}
+                                                        className="text-red-600 hover:text-red-700 text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        Withdraw
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    onClick={() => navigate(`/customer/track/${g.id}`)}
+                                                    className="text-blue-600 hover:text-blue-700 text-xs font-bold uppercase tracking-wider"
+                                                >
+                                                    Track
+                                                </button>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 min-w-[140px]">
-                                            {g.status === "RESOLVED" ? (
-                                                <StarRating
-                                                    rating={g.feedbackRating || 0}
-                                                    grievanceId={g.id}
-                                                    disabled={!!g.feedbackRating || submittingId === g.id}
-                                                />
-                                            ) : (
-                                                <span className="text-xs text-gray-400 italic">Available after resolution</span>
-                                            )}
                                         </td>
                                     </tr>
                                 ))}

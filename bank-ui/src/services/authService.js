@@ -55,9 +55,9 @@ const authService = {
   logout: async () => {
     try {
       await apiClient.post("/auth/logout");
-    } catch (_e) {
+    } catch (e) {
       console.warn(
-        "[authService] Backend logout failed, proceeding with local logout",
+        "[authService] Backend logout failed, proceeding with local logout", e
       );
     }
   },

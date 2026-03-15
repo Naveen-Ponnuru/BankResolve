@@ -19,7 +19,8 @@ export const useErrorLogger = () => {
                 console.info("Affected User ID:", JSON.parse(user).id || "unknown");
                 console.info("Affected User Role:", JSON.parse(user).role || "unknown");
             }
-        } catch (_e) {
+        // eslint-disable-next-line no-unused-vars
+        } catch (e) {
             // ignore
         }
         console.groupEnd();

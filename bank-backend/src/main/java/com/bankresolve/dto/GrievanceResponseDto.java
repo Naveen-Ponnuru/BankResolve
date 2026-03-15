@@ -38,4 +38,7 @@ public class GrievanceResponseDto {
     private String feedbackComment;
     private Instant targetSla;
     private Boolean isEscalated;
+    private Instant updatedAt;
+    private String updatedBy;
+    private String assignedTo;
 }

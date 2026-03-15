@@ -66,11 +66,20 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    // ─── Null Pointer (unexpected data integrity issue) ────────────────────────
+    @ExceptionHandler(NullPointerException.class)
+    public ResponseEntity<ErrorResponse> handleNullPointer(NullPointerException ex) {
+        ex.printStackTrace(); // log for debugging
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Data integrity error: a required field was null. Please contact support.");
+    }
+
     // ─── Catch-All ───────────────────────────────────────────────────────────
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+        ex.printStackTrace(); // log for debugging
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred");
+                "An unexpected error occurred: " + ex.getMessage());
     }
 
     // ─── Helper ──────────────────────────────────────────────────────────────

@@ -107,4 +107,37 @@ public class GrievanceController {
     public ResponseEntity<GrievanceResponseDto> submitFeedback(@PathVariable Long id, @Valid @RequestBody GrievanceFeedbackDto feedback, Principal principal) {
         return ResponseEntity.ok(grievanceService.submitFeedback(id, feedback, principal.getName()));
     }
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('STAFF', 'MANAGER', 'ADMIN')")
+    @Operation(summary = "Update grievance status", 
+               description = "Updates the status of a grievance. Role-based validation applies.")
+    public ResponseEntity<GrievanceResponseDto> updateStatus(
+            @PathVariable Long id, 
+            @Valid @RequestBody com.bankresolve.dto.UpdateStatusRequestDto request, 
+            Principal principal) {
+        return ResponseEntity.ok(grievanceService.updateStatus(id, request.getStatus(), principal.getName()));
+    }
+
+    @GetMapping("/customer")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    @Operation(summary = "Get current customer's grievances (Phase 2)", 
+               description = "Returns a list of grievances for the authenticated customer.")
+    public ResponseEntity<List<GrievanceResponseDto>> getCustomerGrievances(Principal principal) {
+        return ResponseEntity.ok(grievanceService.listGrievances(principal.getName(), null, null));
+    }
+
+    @GetMapping("/{id}/history")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER', 'ADMIN')")
+    @Operation(summary = "Get grievance history", 
+               description = "Returns a timeline of status changes for a specific grievance.")
+    public ResponseEntity<List<com.bankresolve.dto.GrievanceHistoryDto>> getGrievanceHistory(@PathVariable Long id, Principal principal) {
+        return ResponseEntity.ok(grievanceService.getGrievanceHistory(id, principal.getName()));
+    }
+
+    @PostMapping("/{id}/withdraw")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    @Operation(summary = "Withdraw grievance", description = "Allows a customer to withdraw their own grievance.")
+    public ResponseEntity<GrievanceResponseDto> withdrawGrievance(@PathVariable Long id, Principal principal) {
+        return ResponseEntity.ok(grievanceService.withdrawGrievance(id, principal.getName()));
+    }
 }

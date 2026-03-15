@@ -20,7 +20,7 @@ const StaffDashboard = () => {
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center space-x-2">
             <FontAwesomeIcon icon={faBuilding} className="text-blue-500" />
-            <span>{selectedBank?.name || "Bank"} — {user?.fullName || "Staff"}</span>
+            <span>{user?.bankName || selectedBank?.name || "Bank"} — {user?.fullName || "Staff"}</span>
           </p>
         </div>
       </div>

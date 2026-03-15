@@ -59,8 +59,9 @@ public class SecurityConfig {
 
                     // ─── Public endpoints ─────────────────────────────────
                     auth.requestMatchers("/api/auth/**").permitAll();
-                    auth.requestMatchers("/api/banks/**").permitAll();
-                        auth.requestMatchers("/actuator/health").permitAll();
+                    auth.requestMatchers("/api/banks", "/api/banks/**").permitAll();
+                    auth.requestMatchers("/ws/**").permitAll();
+                    auth.requestMatchers("/actuator/health").permitAll();
                         auth.requestMatchers("/swagger-ui.html", "/swagger-ui/**",
                             "/v3/api-docs/**").permitAll();
 
@@ -97,6 +98,9 @@ public class SecurityConfig {
                         // ─── Everything else requires authentication ──────────
                         auth.anyRequest().authenticated();
                 })
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> 
+                        response.sendError(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage())
+                ))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class)
@@ -105,7 +109,6 @@ public class SecurityConfig {
 
     // ─── Authentication Provider ──────────────────────────────────────────────
 
-    @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(customUserDetailsService);

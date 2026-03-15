@@ -7,7 +7,7 @@ const safeSet = (key, value) => {
       key,
       typeof value === "string" ? value : JSON.stringify(value),
     );
-  } catch (_e) {
+  } catch (e) {
     console.warn("[auth-slice] localStorage write failed:", key, e);
   }
 };

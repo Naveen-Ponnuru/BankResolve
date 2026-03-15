@@ -48,6 +48,7 @@ const CustomerDashboard = lazy(
 );
 const FileGrievance = lazy(() => import("./customer/FileGrievance.jsx"));
 const TrackComplaint = lazy(() => import("./customer/TrackMyGrievances.jsx"));
+const GrievanceTrackerPage = lazy(() => import("./customer/GrievanceTrackerPage.jsx"));
 const Feedback = lazy(() => import("./customer/Feedback.jsx"));
 const StaffDashboard = lazy(() => import("./staff/StaffDashboard.jsx"));
 const ManagerDashboard = lazy(() => import("./manager/ManagerDashboard.jsx"));
@@ -110,6 +111,14 @@ const routeDefinitions = createRoutesFromElements(
               element={
                 <Suspense fallback={<SkeletonLoader type="form" />}>
                   <Feedback />
+                </Suspense>
+              }
+            />
+            <Route
+              path="customer/track/:id"
+              element={
+                <Suspense fallback={<SkeletonLoader count={4} />}>
+                  <GrievanceTrackerPage />
                 </Suspense>
               }
             />

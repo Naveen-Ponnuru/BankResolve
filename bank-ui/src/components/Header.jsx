@@ -13,6 +13,7 @@ import {
   faBars,
   faTimes,
 } from "@fortawesome/free-solid-svg-icons";
+import NotificationBell from "./NotificationBell";
 
 // ─── Shared nav link classes ───────────────────────────────────────────────
 const navLinkClass = ({ isActive }) =>
@@ -183,6 +184,9 @@ const Header = () => {
                 </span>
               </div>
             )}
+
+            {/* Notifications */}
+            {isAuthenticated && <NotificationBell />}
 
             {/* Theme Toggle */}
             <button

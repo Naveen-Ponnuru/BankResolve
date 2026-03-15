@@ -11,6 +11,7 @@ export const useLiveStatus = (grievanceId) => {
 
     useEffect(() => {
         if (!grievanceId) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setIsConnected(false);
             return;
         }

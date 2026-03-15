@@ -23,4 +23,7 @@ public abstract class BaseEntity {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    @Column(name = "created_by", length = 150, updatable = false)
+    private String createdBy;
 }

@@ -1,16 +1,15 @@
 import axios from "axios";
 import { toast } from "react-toastify";
 
-const api = axios.create({
-  baseURL: "/api",
+const apiClient = axios.create({
+  baseURL: "http://localhost:8080/api",
+  timeout: 15000,
   headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  },
-  timeout: 10000,
+    "Content-Type": "application/json"
+  }
 });
 
-api.interceptors.request.use(
+apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -21,7 +20,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-api.interceptors.response.use(
+apiClient.interceptors.response.use(
   (res) => res,
   (error) => {
     if (!error.response) {
@@ -43,4 +42,4 @@ api.interceptors.response.use(
   },
 );
 
-export default api;
+export default apiClient;

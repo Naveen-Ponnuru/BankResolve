@@ -58,6 +58,8 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
 
     List<Grievance> findByBankCodeAndPriority(String bankCode, Priority priority);
 
+    long countByBankCode(String bankCode);
+
     long countByBankCodeAndStatus(String bankCode, GrievanceStatus status);
 
     long countByBankCodeAndStatusIn(String bankCode, List<GrievanceStatus> statuses);

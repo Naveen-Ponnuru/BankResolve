@@ -1,13 +1,12 @@
 package com.bankresolve.controller;
 
 import com.bankresolve.entity.Notification;
+import com.bankresolve.entity.User;
 import com.bankresolve.service.NotificationService;
-import com.bankresolve.service.SseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -18,19 +17,30 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationService notificationService;
-    private final SseService sseService;
+    private final com.bankresolve.repository.UserRepository userRepository;
 
     /**
-     * Subscribe to real-time notifications for a specific user.
+     * Get all notifications for the current user. (Phase 3)
      */
-    @GetMapping("/subscribe/{userId}")
-    public SseEmitter subscribe(@PathVariable Long userId) {
-        log.info("REST: Notification subscription request for user {}", userId);
-        return sseService.subscribe(userId);
+    @GetMapping
+    public ResponseEntity<List<Notification>> getCurrentUserNotifications(java.security.Principal principal) {
+        User user = userRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return ResponseEntity.ok(notificationService.getUserNotifications(user.getId()));
     }
 
     /**
-     * Get all notifications for the current user.
+     * Get unread count for current user.
+     */
+    @GetMapping("/unread-count")
+    public ResponseEntity<Long> getUnreadCount(java.security.Principal principal) {
+        User user = userRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return ResponseEntity.ok(notificationService.getUnreadCount(user.getId()));
+    }
+
+    /**
+     * Get all notifications for a specific user (Internal/Debug).
      */
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Notification>> getNotifications(@PathVariable Long userId) {

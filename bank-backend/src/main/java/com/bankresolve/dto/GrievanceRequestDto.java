@@ -1,7 +1,7 @@
 package com.bankresolve.dto;
 
+import com.bankresolve.entity.enums.Priority;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,4 +24,8 @@ public class GrievanceRequestDto {
     private String category;
     
     private BigDecimal transactionAmount;
+
+    private String bankCode;
+
+    private Priority priority;
 }

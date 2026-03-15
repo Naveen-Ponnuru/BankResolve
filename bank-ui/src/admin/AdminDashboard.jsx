@@ -21,7 +21,6 @@ import FormInput from "../ui/FormInput";
 import FormSelect from "../ui/FormSelect";
 import SkeletonLoader from "../ui/SkeletonLoader";
 import { selectBank, selectAvailableBanks } from "../store/bankSlice";
-import { selectUser } from "../store/auth-slice";
 import { toast } from "react-toastify";
 
 // ─── Role color mapping ───────────────────────────────────────────────────────

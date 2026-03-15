@@ -35,7 +35,8 @@ try {
     }
     initialSelectedBank = migrated;
   }
-} catch (_e) {
+// eslint-disable-next-line no-unused-vars
+} catch (err) {
   initialSelectedBank = FALLBACK_BANKS[0];
 }
 
@@ -83,7 +84,7 @@ export const loadBanksFromApi = () => async (dispatch) => {
     if (banks.length > 0) {
       dispatch(fetchBanksSuccess(banks));
     }
-  } catch (_e) {
-    console.warn("[bankSlice] Could not load banks from API — using fallback list.");
+  } catch (err) {
+    console.warn("[bankSlice] Could not load banks from API — using fallback list.", err);
   }
 };

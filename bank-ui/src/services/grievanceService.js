@@ -31,6 +31,19 @@ const grievanceService = {
     },
 
     /**
+     * GET /api/grievances/:id - Get single grievance by ID
+     */
+    getGrievanceById: async (id) => {
+        try {
+            const response = await apiClient.get(`/grievances/${id}`);
+            return response.data;
+        } catch (error) {
+            console.error("API ERROR (getGrievanceById):", error.response || error.message);
+            throw error;
+        }
+    },
+
+    /**
      * GET /api/grievances/dashboard-summary - Role-scoped KPI counts
      */
     getDashboardSummary: async () => {
@@ -60,21 +73,34 @@ const grievanceService = {
     },
 
     /**
-     * GET /api/grievances/monthly-trend - Simple 6-month trend
+     * PUT /api/grievances/{id}/status - Update status (Enterprise Workflow)
      */
-    getMonthlyTrend: async () => {
-        try {
-            const response = await apiClient.get("/grievances/monthly-trend");
-            return response.data;
-        } catch (error) {
-            console.error("API ERROR (getMonthlyTrend):", error.response || error.message);
-            throw error;
-        }
+    updateStatus: async (id, status) => {
+        const response = await apiClient.put(`/grievances/${id}/status`, { status });
+        return response.data;
     },
 
-    // Legacy support or fallback (can be cleaned up later)
-    getGrievanceById: async (id) => {
-        const response = await apiClient.get(`/grievances/${id}`);
+    /**
+     * GET /api/grievances/customer - Specific for Phase 2
+     */
+    getCustomerGrievances: async () => {
+        const response = await apiClient.get("/grievances/customer");
+        return response.data;
+    },
+
+    /**
+     * GET /api/grievances/{id}/history - Timeline data
+     */
+    getGrievanceHistory: async (id) => {
+        const response = await apiClient.get(`/grievances/${id}/history`);
+        return response.data;
+    },
+
+    /**
+     * POST /api/grievances/{id}/withdraw - Withdraw a grievance
+     */
+    withdrawGrievance: async (id) => {
+        const response = await apiClient.post(`/grievances/${id}/withdraw`);
         return response.data;
     },
 

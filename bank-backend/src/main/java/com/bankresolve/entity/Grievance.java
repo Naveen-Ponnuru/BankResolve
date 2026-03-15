@@ -83,8 +83,8 @@ public class Grievance extends BaseEntity {
 
     // ─── Relationships ────────────────────────────────────────────────────────
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "customer_id", nullable = false,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id",
                 foreignKey = @ForeignKey(name = "fk_grievance_customer"))
     private User customer;
 
@@ -128,4 +128,15 @@ public class Grievance extends BaseEntity {
     @Column(name = "is_escalated", nullable = false)
     @Builder.Default
     private Boolean isEscalated = false;
+
+    // ─── Workflow tracking fields ──────────────────────────────────────────────
+
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
+    @Column(name = "updated_by", length = 100)
+    private String updatedBy;
+
+    @Column(name = "assigned_to", length = 100)
+    private String assignedTo;
 }

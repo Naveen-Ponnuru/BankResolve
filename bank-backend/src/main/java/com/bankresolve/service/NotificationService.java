@@ -16,29 +16,36 @@ import java.util.List;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final SseService sseService;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @Transactional
-    public void notifyUser(User user, String message, String category, Long relatedEntityId) {
+    public void notifyUser(User user, String message, String type, Long relatedEntityId) {
         log.info("Notification: Notifying user {} with message: {}", user.getId(), message);
         
         Notification notification = Notification.builder()
                 .user(user)
                 .message(message)
-                .category(category)
+                .type(type)
                 .relatedEntityId(relatedEntityId)
                 .isRead(false)
                 .build();
         
         Notification saved = notificationRepository.save(notification);
         
-        // Push real-time event
-        sseService.sendNotification(user.getId(), saved);
+        // Push real-time event via WebSocket
+        String destination = "/topic/notifications/" + user.getId();
+        messagingTemplate.convertAndSend(destination, saved);
+        log.info("WebSocket: Sent notification to {}", destination);
     }
 
     @Transactional(readOnly = true)
     public List<Notification> getUserNotifications(Long userId) {
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public long getUnreadCount(Long userId) {
+        return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }
 
     @Transactional

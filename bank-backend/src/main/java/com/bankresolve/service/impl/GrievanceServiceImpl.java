@@ -1,68 +1,113 @@
 package com.bankresolve.service.impl;
 
 import com.bankresolve.dto.GrievanceFeedbackDto;
+import com.bankresolve.dto.GrievanceHistoryDto;
 import com.bankresolve.dto.GrievanceRequestDto;
 import com.bankresolve.dto.GrievanceResponseDto;
+import com.bankresolve.dto.GrievanceSummaryDto;
 import com.bankresolve.dto.MonthlyTrendDto;
 import com.bankresolve.entity.Bank;
 import com.bankresolve.entity.Grievance;
+import com.bankresolve.entity.GrievanceHistory;
 import com.bankresolve.entity.User;
 import com.bankresolve.entity.enums.GrievanceStatus;
 import com.bankresolve.entity.enums.Priority;
+import com.bankresolve.entity.enums.Role;
 import com.bankresolve.exception.ResourceNotFoundException;
 import com.bankresolve.repository.BankRepository;
+import com.bankresolve.repository.GrievanceHistoryRepository;
 import com.bankresolve.repository.GrievanceRepository;
 import com.bankresolve.repository.UserRepository;
 import com.bankresolve.service.GrievanceService;
 import com.bankresolve.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Random;
-import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GrievanceServiceImpl implements GrievanceService {
 
     private final GrievanceRepository grievanceRepository;
+    private final GrievanceHistoryRepository grievanceHistoryRepository;
     private final UserRepository userRepository;
     private final BankRepository bankRepository;
     private final NotificationService notificationService;
 
-    private static final Set<String> FRAUD_CATEGORIES = Set.of(
-            "UPI_FRAUD", "CREDIT_CARD_FRAUD", "DEBIT_CARD_FRAUD"
-    );
+    private static final long SLA_HOURS_NORMAL = 48;
+    private static final long SLA_HOURS_HIGH   = 24;
 
-    // ─── Bank Code Resolution Helper ──────────────────────────────────────────
+    // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    /**
-     * Resolves the bank code for a user, preferring the denormalized bankCode field,
-     * then falling back to the bank relationship. Throws if the role requires a bank.
-     */
-    private String resolveBankCode(User user) {
-        String bankCode = user.getBankCode();
-        if (bankCode == null && user.getBank() != null) {
-            bankCode = user.getBank().getCode();
-        }
-        return bankCode;
+    private String generateReferenceNumber() {
+        return "BRX-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
-    private String requireBankCode(User user, String role) {
-        String bankCode = resolveBankCode(user);
-        if (bankCode == null || bankCode.isBlank()) {
-            throw new IllegalStateException(role + " must have a bank assigned. No bankCode found for user: " + user.getEmail());
+    private String requireBankCode(User user, String roleName) {
+        String code = user.getBankCode();
+        if (code == null || code.isBlank()) {
+            throw new IllegalStateException("Misconfiguration: " + roleName + " must have a valid bank code assigned.");
         }
-        return bankCode;
+        return code;
     }
+
+    // ─── Create ───────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public GrievanceResponseDto createGrievance(String customerEmail, GrievanceRequestDto request) {
+        User customer = userRepository.findByEmail(customerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", customerEmail));
+
+        String bankCodeToUse = request.getBankCode();
+        if (bankCodeToUse == null || bankCodeToUse.isBlank()) {
+            if (customer.getBank() != null) {
+                bankCodeToUse = customer.getBank().getCode();
+            } else {
+                throw new IllegalArgumentException("Bank Code is required to file a grievance.");
+            }
+        }
+
+        final String effectiveBankCode = bankCodeToUse;
+        Bank bank = bankRepository.findByCode(effectiveBankCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Bank", "code", effectiveBankCode));
+
+        Priority priority = request.getPriority() != null ? request.getPriority() : Priority.NORMAL;
+        Instant targetSla = Instant.now().plus(
+                priority == Priority.HIGH ? SLA_HOURS_HIGH : SLA_HOURS_NORMAL, ChronoUnit.HOURS);
+
+        Grievance grievance = Grievance.builder()
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .category(request.getCategory())
+                .transactionAmount(request.getTransactionAmount())
+                .bank(bank)
+                .bankCode(bank.getCode())
+                .customer(customer)
+                .priority(priority)
+                .targetSla(targetSla)
+                .status(GrievanceStatus.FILED)
+                .referenceNumber(generateReferenceNumber())
+                .build();
+        grievance.setCreatedBy(customerEmail);
+
+        Grievance saved = grievanceRepository.save(grievance);
+        addHistoryRecord(saved, GrievanceStatus.FILED, customerEmail, "Grievance filed successfully.");
+        notificationService.notifyUser(customer,
+                "Your grievance has been filed. Ref: " + saved.getReferenceNumber(),
+                "GRIEVANCE_CREATED", saved.getId());
+        return mapToDto(saved);
+    }
+
+    // ─── List ─────────────────────────────────────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
@@ -70,212 +115,217 @@ public class GrievanceServiceImpl implements GrievanceService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
-        com.bankresolve.entity.enums.Role role = user.getRole();
+        Role role = user.getRole();
         List<Grievance> grievances;
 
-        if (role == com.bankresolve.entity.enums.Role.ADMIN) {
-            // ADMIN: global visibility across ALL banks
-            if (status != null) {
-                grievances = grievanceRepository.findByStatus(status);
-            } else if (priority != null) {
-                grievances = grievanceRepository.findByPriority(priority);
-            } else {
-                grievances = grievanceRepository.findAll();
-            }
-        } else if (role == com.bankresolve.entity.enums.Role.CUSTOMER) {
-            // CUSTOMER: strictly only their own grievances (no bankCode filter needed — user.id is the scope)
-            if (status != null) {
-                grievances = grievanceRepository.findByCustomerIdAndStatus(user.getId(), status);
-            } else if (priority != null) {
-                grievances = grievanceRepository.findByCustomerIdAndPriority(user.getId(), priority);
-            } else {
-                grievances = grievanceRepository.findByCustomerId(user.getId());
-            }
+        if (role == Role.ADMIN) {
+            grievances = grievanceRepository.findAll();
+        } else if (role == Role.CUSTOMER) {
+            grievances = grievanceRepository.findByCustomerId(user.getId());
+        } else if (role == Role.MANAGER) {
+            String bankCode = requireBankCode(user, "MANAGER");
+            grievances = grievanceRepository.findByBankCode(bankCode);
         } else {
-            // STAFF and MANAGER: filter strictly by user's own bank code
-            // bankCode is ALWAYS derived from the authenticated user — never from the request payload
-            String bankCode = requireBankCode(user, role.name());
-            if (status != null) {
-                grievances = grievanceRepository.findByBankCodeAndStatus(bankCode, status);
-            } else if (priority != null) {
-                grievances = grievanceRepository.findByBankCodeAndPriority(bankCode, priority);
-            } else {
-                grievances = grievanceRepository.findByBankCode(bankCode);
-            }
+            // STAFF
+            String bankCode = requireBankCode(user, "STAFF");
+            List<Grievance> bankGrievances = grievanceRepository.findByBankCode(bankCode);
+            grievances = bankGrievances.stream()
+                    .filter(g -> g.getAssignedStaff() == null || g.getAssignedStaff().getId().equals(user.getId()))
+                    .collect(Collectors.toList());
         }
 
-        return grievances.stream()
-                .map(this::mapToResponseDto)
-                .collect(Collectors.toList());
+        // Apply filters
+        if (status != null) {
+            grievances = grievances.stream().filter(g -> g.getStatus() == status).collect(Collectors.toList());
+        }
+        if (priority != null) {
+            grievances = grievances.stream().filter(g -> g.getPriority() == priority).collect(Collectors.toList());
+        }
+
+        return grievances.stream().map(this::mapToDto).collect(Collectors.toList());
     }
 
+    // ─── Get by ID ────────────────────────────────────────────────────────────
 
     @Override
-    @Transactional
-    public GrievanceResponseDto createGrievance(String customerEmail, GrievanceRequestDto request) {
-        User user = userRepository.findByEmail(customerEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", customerEmail));
+    @Transactional(readOnly = true)
+    public GrievanceResponseDto getGrievanceById(Long id, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        Grievance grievance = grievanceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grievance", "id", id));
 
-        // Derive bankCode from authenticated user's associated bank
-        Bank bank = user.getBank();
-        if (bank == null) {
-            throw new IllegalStateException("User is not associated with any bank");
+        if (user.getRole() == Role.CUSTOMER) {
+            if (!grievance.getCustomer().getId().equals(user.getId())) {
+                throw new AccessDeniedException("Access denied: You can only view your own grievances.");
+            }
+        } else if (user.getRole() != Role.ADMIN) {
+            String bankCode = requireBankCode(user, user.getRole().name());
+            if (!bankCode.equals(grievance.getBankCode())) {
+                throw new AccessDeniedException("Access denied: Grievance belongs to a different bank.");
+            }
         }
-
-        String referenceNumber = generateReferenceNumber(bank.getCode());
-        Priority priority = determinePriority(request.getTransactionAmount(), request.getCategory());
-        
-        // SLA Calculation: High priority = 48 hours, Normal = 7 days
-        Instant targetSla = Instant.now().plus(
-                priority == Priority.HIGH ? java.time.Duration.ofHours(48) : java.time.Duration.ofDays(7)
-        );
-
-        Grievance grievance = Grievance.builder()
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .category(request.getCategory())
-                .transactionAmount(request.getTransactionAmount())
-                .referenceNumber(referenceNumber)
-                .bankCode(bank.getCode()) // Enforce derived bankCode
-                .customer(user)
-                .bank(bank)
-                .status(GrievanceStatus.FILED)
-                .priority(priority)
-                .targetSla(targetSla)
-                .isEscalated(false)
-                .build();
-
-        Grievance saved = grievanceRepository.save(grievance);
-        
-        // Notify Customer
-        notificationService.notifyUser(user, 
-                "Your grievance has been filed successfully. Ref: " + saved.getReferenceNumber(),
-                "GRIEVANCE_FILED", saved.getId());
-
-        return mapToResponseDto(saved);
+        return mapToDto(grievance);
     }
+
+    // ─── Forward to Manager ───────────────────────────────────────────────────
 
     @Override
     @Transactional
     public GrievanceResponseDto forwardToManager(Long id, String staffEmail) {
         User staff = userRepository.findByEmail(staffEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", staffEmail));
-
         Grievance grievance = grievanceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grievance", "id", id));
 
-        // Tenancy check: staff must belong to the same bank as the grievance
-        if (!staff.getBank().getId().equals(grievance.getBank().getId())) {
-            throw new org.springframework.security.access.AccessDeniedException("Unauthorized: Grievance belongs to another bank");
+        if (staff.getRole() != Role.STAFF) {
+            throw new AccessDeniedException("Only staff members can escalate grievances.");
+        }
+        String bankCode = requireBankCode(staff, "STAFF");
+        if (!grievance.getBankCode().equals(bankCode)) {
+            throw new AccessDeniedException("Cannot escalate grievance outside your bank.");
         }
 
-        // Only STAFF can forward as per clean implementation rules
-        if (staff.getRole() != com.bankresolve.entity.enums.Role.STAFF) {
-            throw new org.springframework.security.access.AccessDeniedException("Only staff members can escalate grievances to managers");
-        }
-
-        // Find the first manager in the same bank
-        List<User> managers = userRepository.findByBankIdAndRole(staff.getBank().getId(), com.bankresolve.entity.enums.Role.MANAGER);
+        List<User> managers = userRepository.findByRoleAndBankCode(Role.MANAGER, bankCode);
         if (managers.isEmpty()) {
-            throw new IllegalStateException("No manager found for this bank branch to handle escalation.");
+            throw new IllegalStateException("No managers available for bank: " + bankCode);
         }
 
         grievance.setStatus(GrievanceStatus.ESCALATED);
         grievance.setAssignedManager(managers.get(0));
-        
         Grievance saved = grievanceRepository.save(grievance);
+        addHistoryRecord(saved, GrievanceStatus.ESCALATED, staffEmail, "Escalated to Manager");
 
-        // Notify Manager
         if (saved.getAssignedManager() != null) {
-            notificationService.notifyUser(saved.getAssignedManager(), 
-                    "A grievance has been escalated to you. Ref: " + saved.getReferenceNumber(),
+            notificationService.notifyUser(saved.getAssignedManager(),
+                    "Grievance escalated to you. Ref: " + saved.getReferenceNumber(),
                     "GRIEVANCE_ESCALATED", saved.getId());
         }
-
-        return mapToResponseDto(saved);
+        return mapToDto(saved);
     }
+
+    // ─── Resolve ──────────────────────────────────────────────────────────────
 
     @Override
     @Transactional
     public GrievanceResponseDto resolveGrievance(Long id, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
-
         Grievance grievance = grievanceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grievance", "id", id));
 
-        // Tenancy check
-        if (user.getRole() != com.bankresolve.entity.enums.Role.ADMIN && 
-            (user.getBank() == null || !user.getBank().getId().equals(grievance.getBank().getId()))) {
-            throw new org.springframework.security.access.AccessDeniedException("Unauthorized: Access restricted to assigned bank residency");
+        if (user.getRole() != Role.ADMIN &&
+                (user.getBank() == null || !user.getBank().getId().equals(grievance.getBank().getId()))) {
+            throw new AccessDeniedException("Unauthorized: restricted to assigned bank.");
         }
 
-        // Priority-based Resolution Rules
         if (grievance.getPriority() == Priority.HIGH) {
-            // HIGH priority → Only MANAGER or ADMIN
-            if (user.getRole() == com.bankresolve.entity.enums.Role.STAFF) {
-                throw new org.springframework.security.access.AccessDeniedException("Access Denied: STAFF can only resolve NORMAL priority grievances. HIGH priority must be forwarded to a MANAGER.");
+            if (user.getRole() == Role.STAFF) {
+                throw new AccessDeniedException("STAFF cannot resolve HIGH priority grievances.");
             }
-            if (user.getRole() != com.bankresolve.entity.enums.Role.MANAGER && user.getRole() != com.bankresolve.entity.enums.Role.ADMIN) {
-                throw new org.springframework.security.access.AccessDeniedException("Resolution Policy: HIGH priority grievances require Manager or Admin approval.");
+            if (user.getRole() != Role.MANAGER && user.getRole() != Role.ADMIN) {
+                throw new AccessDeniedException("HIGH priority requires Manager or Admin.");
             }
         } else {
-            // NORMAL priority → STAFF or MANAGER (or ADMIN)
-            if (user.getRole() != com.bankresolve.entity.enums.Role.STAFF && 
-                user.getRole() != com.bankresolve.entity.enums.Role.MANAGER && 
-                user.getRole() != com.bankresolve.entity.enums.Role.ADMIN) {
-                throw new org.springframework.security.access.AccessDeniedException("Unauthorized: You do not have resolution permissions.");
+            if (user.getRole() != Role.STAFF && user.getRole() != Role.MANAGER && user.getRole() != Role.ADMIN) {
+                throw new AccessDeniedException("Unauthorized: no resolution permissions.");
             }
         }
 
         grievance.setStatus(GrievanceStatus.RESOLVED);
-        grievance.setResolvedAt(java.time.Instant.now());
+        grievance.setResolvedAt(Instant.now());
         grievance.setResolvedBy(user);
         grievance.setResolvedRole(user.getRole());
-        
         Grievance saved = grievanceRepository.save(grievance);
-
-        // Notify Customer of resolution
-        notificationService.notifyUser(saved.getCustomer(), 
-                "Your grievance " + saved.getReferenceNumber() + " has been RESOLVED.",
-                "GRIEVANCE_RESOLVED", saved.getId());
-
-        return mapToResponseDto(saved);
+        addHistoryRecord(saved, GrievanceStatus.RESOLVED, userEmail, "Grievance resolved.");
+        // Only notify if customer still exists (may be null due to ON DELETE SET NULL)
+        if (saved.getCustomer() != null) {
+            notificationService.notifyUser(saved.getCustomer(),
+                    "Your grievance has been resolved. Ref: " + saved.getReferenceNumber(),
+                    "GRIEVANCE_RESOLVED", saved.getId());
+        }
+        return mapToDto(saved);
     }
+
+    // ─── Update Status ────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public GrievanceResponseDto updateStatus(Long id, GrievanceStatus newStatus, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        Grievance grievance = grievanceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grievance", "id", id));
+
+        Role role = user.getRole();
+        if (role == Role.CUSTOMER) {
+            throw new AccessDeniedException("Customers cannot update grievance status.");
+        }
+        if (role != Role.ADMIN) {
+            String bankCode = requireBankCode(user, role.name());
+            if (!bankCode.equals(grievance.getBankCode())) {
+                throw new AccessDeniedException("Access denied: different bank.");
+            }
+        }
+        if (role == Role.STAFF) {
+            if (grievance.getAssignedStaff() != null && !grievance.getAssignedStaff().getId().equals(user.getId())) {
+                throw new AccessDeniedException("Staff can only update grievances assigned to them.");
+            }
+        }
+
+        grievance.setStatus(newStatus);
+        if ((newStatus == GrievanceStatus.ACCEPTED || newStatus == GrievanceStatus.IN_PROGRESS)
+                && grievance.getAssignedStaff() == null) {
+            grievance.setAssignedStaff(user);
+            grievance.setAssignedTo(user.getEmail());
+        }
+
+        Grievance saved = grievanceRepository.save(grievance);
+        addHistoryRecord(saved, newStatus, email, "Status updated to " + newStatus);
+
+        if ((newStatus == GrievanceStatus.ACCEPTED || newStatus == GrievanceStatus.IN_PROGRESS
+                || newStatus == GrievanceStatus.RESOLVED) && saved.getCustomer() != null) {
+            notificationService.notifyUser(saved.getCustomer(),
+                    "Status updated to " + newStatus + " for grievance: " + saved.getReferenceNumber(),
+                    "GRIEVANCE_UPDATED", saved.getId());
+        }
+        return mapToDto(saved);
+    }
+
+    // ─── Dashboard Summary ────────────────────────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
-    public com.bankresolve.dto.GrievanceSummaryDto getDashboardSummary(String email) {
+    public GrievanceSummaryDto getDashboardSummary(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
-
-        com.bankresolve.entity.enums.Role role = user.getRole();
+        Role role = user.getRole();
 
         long total, pending, resolved, highRisk;
 
-        if (role == com.bankresolve.entity.enums.Role.ADMIN) {
-            // ADMIN: aggregate across ALL banks (no bankCode filter)
-            total = grievanceRepository.count();
-            pending = grievanceRepository.countByStatuses(List.of(GrievanceStatus.FILED, GrievanceStatus.PENDING));
+        if (role == Role.ADMIN) {
+            total   = grievanceRepository.count();
+            pending = grievanceRepository.countByStatus(GrievanceStatus.FILED)
+                    + grievanceRepository.countByStatus(GrievanceStatus.ACCEPTED)
+                    + grievanceRepository.countByStatus(GrievanceStatus.IN_PROGRESS);
             resolved = grievanceRepository.countByStatus(GrievanceStatus.RESOLVED);
-            highRisk = grievanceRepository.countByStatus(GrievanceStatus.ESCALATED);
-        } else if (role == com.bankresolve.entity.enums.Role.CUSTOMER) {
-            // CUSTOMER: strictly their own grievances only
-            total = grievanceRepository.countByCustomerId(user.getId());
-            pending = grievanceRepository.countByCustomerIdAndStatuses(user.getId(), List.of(GrievanceStatus.FILED, GrievanceStatus.PENDING));
+            highRisk = grievanceRepository.findByPriority(Priority.HIGH).size();
+        } else if (role == Role.CUSTOMER) {
+            total    = grievanceRepository.countByCustomerId(user.getId());
+            pending  = grievanceRepository.countByCustomerIdAndStatuses(user.getId(),
+                        List.of(GrievanceStatus.FILED, GrievanceStatus.ACCEPTED, GrievanceStatus.IN_PROGRESS));
             resolved = grievanceRepository.countByCustomerIdAndStatus(user.getId(), GrievanceStatus.RESOLVED);
-            highRisk = grievanceRepository.countByCustomerIdAndStatus(user.getId(), GrievanceStatus.ESCALATED);
+            highRisk = 0;
         } else {
-            // STAFF and MANAGER: bankCode strictly from server-side user.getBank().getCode()
             String bankCode = requireBankCode(user, role.name());
-            total = grievanceRepository.countByBankCodeAndStatusIn(bankCode,
-                        List.of(GrievanceStatus.FILED, GrievanceStatus.PENDING, GrievanceStatus.RESOLVED, GrievanceStatus.ESCALATED, GrievanceStatus.REJECTED));
-            pending = grievanceRepository.countByBankCodeAndStatusIn(bankCode, List.of(GrievanceStatus.FILED, GrievanceStatus.PENDING));
+            total    = grievanceRepository.countByBankCode(bankCode);
+            pending  = grievanceRepository.countByBankCodeAndStatusIn(bankCode,
+                        List.of(GrievanceStatus.FILED, GrievanceStatus.ACCEPTED, GrievanceStatus.IN_PROGRESS));
             resolved = grievanceRepository.countByBankCodeAndStatus(bankCode, GrievanceStatus.RESOLVED);
-            highRisk = grievanceRepository.countByBankCodeAndStatus(bankCode, GrievanceStatus.ESCALATED);
+            highRisk = grievanceRepository.findByBankCodeAndPriority(bankCode, Priority.HIGH).size();
         }
 
-        return com.bankresolve.dto.GrievanceSummaryDto.builder()
+        return GrievanceSummaryDto.builder()
                 .total(total)
                 .pending(pending)
                 .resolved(resolved)
@@ -283,157 +333,164 @@ public class GrievanceServiceImpl implements GrievanceService {
                 .build();
     }
 
+    // ─── Monthly Trend ────────────────────────────────────────────────────────
+
     @Override
     @Transactional(readOnly = true)
-    public List<com.bankresolve.dto.MonthlyTrendDto> getMonthlyTrend(String email) {
+    public List<MonthlyTrendDto> getMonthlyTrend(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        Role role = user.getRole();
 
-        com.bankresolve.entity.enums.Role role = user.getRole();
         List<Object[]> results;
-
-        if (role == com.bankresolve.entity.enums.Role.ADMIN) {
-            // ADMIN: global trend across all banks
+        if (role == Role.ADMIN) {
             results = grievanceRepository.getGlobalMonthlyTrend();
-        } else if (role == com.bankresolve.entity.enums.Role.CUSTOMER) {
-            // CUSTOMER: their own grievance trend
+        } else if (role == Role.CUSTOMER) {
             results = grievanceRepository.getCustomerMonthlyTrend(user.getId());
         } else {
-            // STAFF and MANAGER: bankCode from server-side user — never the frontend payload
             String bankCode = requireBankCode(user, role.name());
             results = grievanceRepository.getBankMonthlyTrend(bankCode);
         }
 
         return results.stream()
-                .map(row -> com.bankresolve.dto.MonthlyTrendDto.builder()
+                .map(row -> MonthlyTrendDto.builder()
                         .month((String) row[0])
                         .count(((Number) row[1]).longValue())
                         .build())
                 .collect(Collectors.toList());
     }
 
+    // ─── Feedback ─────────────────────────────────────────────────────────────
+
     @Override
     @Transactional
-    public GrievanceResponseDto submitFeedback(Long id, com.bankresolve.dto.GrievanceFeedbackDto feedback, String email) {
+    public GrievanceResponseDto submitFeedback(Long id, GrievanceFeedbackDto feedback, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
-
         Grievance grievance = grievanceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grievance", "id", id));
 
-        // Security/Residency check
         if (!grievance.getCustomer().getId().equals(user.getId())) {
-            throw new org.springframework.security.access.AccessDeniedException("Feedback Policy: Only the customer who filed the grievance can provide feedback.");
+            throw new AccessDeniedException("You can only give feedback on your own grievances.");
         }
-
-        // Status check
         if (grievance.getStatus() != GrievanceStatus.RESOLVED) {
-            throw new IllegalStateException("Feedback can only be provided for resolved grievances.");
-        }
-
-        // Duplicate check
-        if (grievance.getFeedbackRating() != null) {
-            throw new IllegalStateException("Feedback has already been submitted for this grievance.");
-        }
-
-        // Rating validation (redundant with DTO but safe for internal calls)
-        if (feedback.getRating() < 1 || feedback.getRating() > 5) {
-            throw new IllegalArgumentException("Rating must be between 1 and 5.");
+            throw new IllegalStateException("Feedback can only be submitted after the grievance is resolved.");
         }
 
         grievance.setFeedbackRating(feedback.getRating());
         grievance.setFeedbackComment(feedback.getComment());
-
-        Grievance saved = grievanceRepository.save(grievance);
-        return mapToResponseDto(saved);
+        return mapToDto(grievanceRepository.save(grievance));
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
-
-    private String generateReferenceNumber(String bankCode) {
-        String datePart = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String referenceNumber;
-        boolean isUnique;
-        int attempts = 0;
-        
-        do {
-            String randomPart = String.format("%06d", new Random().nextInt(1000000));
-            referenceNumber = String.format("%s-%s-%s", bankCode, datePart, randomPart);
-            isUnique = !grievanceRepository.existsByReferenceNumber(referenceNumber);
-            attempts++;
-            if (attempts > 5) { // Fallback if extremely unlucky
-                 randomPart = String.format("%08d", new Random().nextInt(100000000));
-                 referenceNumber = String.format("%s-%s-%s", bankCode, datePart, randomPart);
-            }
-        } while (!isUnique && attempts < 10);
-
-        return referenceNumber;
-    }
-
-    private Priority determinePriority(BigDecimal amount, String category) {
-        if (amount != null && amount.compareTo(new BigDecimal("100000")) > 0) {
-            return Priority.HIGH;
-        }
-        if (category != null && FRAUD_CATEGORIES.contains(category.toUpperCase())) {
-            return Priority.HIGH;
-        }
-        return Priority.NORMAL;
-    }
+    // ─── History ──────────────────────────────────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
-    public GrievanceResponseDto getGrievanceById(Long id, String email) {
+    public List<GrievanceHistoryDto> getGrievanceHistory(Long id, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
-
         Grievance grievance = grievanceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grievance", "id", id));
 
-        // ─── Tenancy: bankCode ALWAYS derived from server-side user — never from frontend ───────
-        if (user.getRole() == com.bankresolve.entity.enums.Role.CUSTOMER) {
-            // CUSTOMER: must own the grievance
+        if (user.getRole() == Role.CUSTOMER) {
             if (!grievance.getCustomer().getId().equals(user.getId())) {
-                throw new AccessDeniedException("Access denied: You can only view your own grievances.");
+                throw new AccessDeniedException("You can only view history of your own grievances.");
             }
-        } else if (user.getRole() != com.bankresolve.entity.enums.Role.ADMIN) {
-            // STAFF and MANAGER: bankCode from user entity — grievance must belong to same bank
-            String userBankCode = requireBankCode(user, user.getRole().name());
-            if (!userBankCode.equals(grievance.getBankCode())) {
+        } else if (user.getRole() != Role.ADMIN) {
+            String bankCode = requireBankCode(user, user.getRole().name());
+            if (!bankCode.equals(grievance.getBankCode())) {
                 throw new AccessDeniedException("Access denied: Grievance belongs to a different bank.");
             }
         }
-        // ADMIN: no bankCode restriction
 
-
-        return mapToResponseDto(grievance);
+        return grievanceHistoryRepository.findByGrievanceIdOrderByTimestampDesc(id)
+                .stream()
+                .map(h -> GrievanceHistoryDto.builder()
+                        .id(h.getId())
+                        .grievanceId(h.getGrievance().getId())
+                        .status(h.getStatus())
+                        .updatedBy(h.getUpdatedBy())
+                        .timestamp(h.getTimestamp())
+                        .note(h.getNote())
+                        .build())
+                .collect(Collectors.toList());
     }
 
-    private GrievanceResponseDto mapToResponseDto(Grievance grievance) {
+    // ─── Withdraw ─────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public GrievanceResponseDto withdrawGrievance(Long id, String customerEmail) {
+        User customer = userRepository.findByEmail(customerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", customerEmail));
+        Grievance grievance = grievanceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grievance", "id", id));
+
+        if (!grievance.getCustomer().getId().equals(customer.getId())) {
+            throw new AccessDeniedException("You can only withdraw your own grievances.");
+        }
+        if (grievance.getStatus() == GrievanceStatus.RESOLVED
+                || grievance.getStatus() == GrievanceStatus.WITHDRAWN) {
+            throw new IllegalStateException("Cannot withdraw a grievance with status: " + grievance.getStatus());
+        }
+
+        grievance.setStatus(GrievanceStatus.WITHDRAWN);
+        Grievance saved = grievanceRepository.save(grievance);
+        addHistoryRecord(saved, GrievanceStatus.WITHDRAWN, customerEmail, "Grievance withdrawn by customer.");
+
+        if (saved.getAssignedStaff() != null) {
+            notificationService.notifyUser(saved.getAssignedStaff(),
+                    "Customer withdrew grievance: " + saved.getReferenceNumber(),
+                    "GRIEVANCE_WITHDRAWN", saved.getId());
+        }
+        return mapToDto(saved);
+    }
+
+    // ─── Internal Helpers ─────────────────────────────────────────────────────
+
+    private void addHistoryRecord(Grievance grievance, GrievanceStatus status, String updatedBy, String note) {
+        GrievanceHistory history = GrievanceHistory.builder()
+                .grievance(grievance)
+                .status(status)
+                .updatedBy(updatedBy)
+                .note(note)
+                .timestamp(Instant.now())
+                .build();
+        grievanceHistoryRepository.save(history);
+        grievance.setUpdatedAt(Instant.now());
+        grievance.setUpdatedBy(updatedBy);
+    }
+
+    private GrievanceResponseDto mapToDto(Grievance g) {
         return GrievanceResponseDto.builder()
-                .id(grievance.getId())
-                .referenceNumber(grievance.getReferenceNumber())
-                .title(grievance.getTitle())
-                .description(grievance.getDescription())
-                .category(grievance.getCategory())
-                .transactionAmount(grievance.getTransactionAmount())
-                .bankCode(grievance.getBankCode())
-                .status(grievance.getStatus())
-                .priority(grievance.getPriority())
-                .customerId(grievance.getCustomer().getId())
-                .customerName(grievance.getCustomer().getFullName())
-                .assignedStaffId(grievance.getAssignedStaff() != null ? grievance.getAssignedStaff().getId() : null)
-                .assignedStaffName(grievance.getAssignedStaff() != null ? grievance.getAssignedStaff().getFullName() : null)
-                .assignedManagerId(grievance.getAssignedManager() != null ? grievance.getAssignedManager().getId() : null)
-                .assignedManagerName(grievance.getAssignedManager() != null ? grievance.getAssignedManager().getFullName() : null)
-                .createdAt(grievance.getCreatedAt())
-                .resolvedAt(grievance.getResolvedAt())
-                .resolvedById(grievance.getResolvedBy() != null ? grievance.getResolvedBy().getId() : null)
-                .resolvedByName(grievance.getResolvedBy() != null ? grievance.getResolvedBy().getFullName() : null)
-                .resolvedRole(grievance.getResolvedRole())
-                .feedbackRating(grievance.getFeedbackRating())
-                .feedbackComment(grievance.getFeedbackComment())
-                .targetSla(grievance.getTargetSla())
-                .isEscalated(grievance.getIsEscalated())
+                .id(g.getId())
+                .referenceNumber(g.getReferenceNumber())
+                .title(g.getTitle())
+                .description(g.getDescription())
+                .category(g.getCategory())
+                .transactionAmount(g.getTransactionAmount())
+                .bankCode(g.getBankCode())
+                .status(g.getStatus())
+                .priority(g.getPriority())
+                // customer may be null if user was deleted (ON DELETE SET NULL)
+                .customerId(g.getCustomer() != null ? g.getCustomer().getId() : null)
+                .customerName(g.getCustomer() != null ? g.getCustomer().getFullName() : "[Deleted User]")
+                .assignedStaffId(g.getAssignedStaff() != null ? g.getAssignedStaff().getId() : null)
+                .assignedStaffName(g.getAssignedStaff() != null ? g.getAssignedStaff().getFullName() : null)
+                .assignedManagerId(g.getAssignedManager() != null ? g.getAssignedManager().getId() : null)
+                .assignedManagerName(g.getAssignedManager() != null ? g.getAssignedManager().getFullName() : null)
+                .createdAt(g.getCreatedAt())
+                .resolvedAt(g.getResolvedAt())
+                .resolvedById(g.getResolvedBy() != null ? g.getResolvedBy().getId() : null)
+                .resolvedByName(g.getResolvedBy() != null ? g.getResolvedBy().getFullName() : null)
+                .resolvedRole(g.getResolvedRole())
+                .feedbackRating(g.getFeedbackRating())
+                .feedbackComment(g.getFeedbackComment())
+                .targetSla(g.getTargetSla())
+                .isEscalated(g.getIsEscalated())
+                .updatedAt(g.getUpdatedAt())
+                .updatedBy(g.getUpdatedBy())
+                .assignedTo(g.getAssignedTo())
                 .build();
     }
 }

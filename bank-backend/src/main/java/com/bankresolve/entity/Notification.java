@@ -19,6 +19,7 @@ public class Notification extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, 
                 foreignKey = @ForeignKey(name = "fk_notification_user"))
@@ -34,6 +35,6 @@ public class Notification extends BaseEntity {
     @Column(name = "related_entity_id")
     private Long relatedEntityId;
 
-    @Column(name = "category", length = 50)
-    private String category; // e.g., "GRIEVANCE_STATUS", "SLA_BREACH", "ASSIGNMENT"
+    @Column(name = "type", length = 50)
+    private String type; // e.g., "GRIEVANCE_STATUS", "SLA_BREACH", "ASSIGNMENT"
 }
