@@ -49,31 +49,15 @@ public class DataInitializer implements CommandLineRunner {
     private void seedInitialUsers() {
         Bank sbi = bankRepository.findByCode("SBI001").orElseThrow();
 
-        syncExistingUsers();
-
-        seedUserIfMissing("admin@bank.com", "System Administrator", "password123", Role.ADMIN, sbi, "SBI001");
-        seedUserIfMissing("manager@bank.com", "Bank Manager", "password123", Role.MANAGER, sbi, "SBI001");
-        seedUserIfMissing("staff@bank.com", "Bank Staff", "password123", Role.STAFF, sbi, "SBI001");
-        seedUserIfMissing("customer@bank.com", "Demo Customer", "password123", Role.CUSTOMER, sbi, "SBI001");
+        seedUserIfMissing("admin@bank.com", "System Administrator", "password123", Role.ADMIN, sbi);
+        seedUserIfMissing("manager@bank.com", "Bank Manager", "password123", Role.MANAGER, sbi);
+        seedUserIfMissing("staff@bank.com", "Bank Staff", "password123", Role.STAFF, sbi);
+        seedUserIfMissing("customer@bank.com", "Demo Customer", "password123", Role.CUSTOMER, sbi);
 
         log.info("DataInitializer: verified and synced demo users");
     }
 
-    @org.springframework.transaction.annotation.Transactional
-    public void syncExistingUsers() {
-        userRepository.findAll().forEach(user -> {
-            if (user.getBank() != null) {
-                String correctCode = user.getBank().getCode();
-                if (!correctCode.equals(user.getBankCode())) {
-                    user.setBankCode(correctCode);
-                    userRepository.save(user);
-                    log.info("DataInitializer: synced bankCode for user {}", user.getEmail());
-                }
-            }
-        });
-    }
-
-    private void seedUserIfMissing(String email, String name, String password, Role role, Bank bank, String bankCode) {
+    private void seedUserIfMissing(String email, String name, String password, Role role, Bank bank) {
         if (userRepository.existsByEmail(email)) {
             return;
         }
@@ -84,7 +68,6 @@ public class DataInitializer implements CommandLineRunner {
                 .role(role)
                 .enabled(true)
                 .bank(bank)
-                .bankCode(bankCode)
                 .build();
         userRepository.save(user);
         log.info("DataInitializer: seeded user {}", email);

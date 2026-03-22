@@ -50,8 +50,7 @@ public class User extends BaseEntity {
     @Builder.Default
     private Boolean enabled = true;
 
-    @Column(name = "bank_code", length = 50)
-    private String bankCode;
+
 
     // ─── Relationships ────────────────────────────────────────────────────────
 

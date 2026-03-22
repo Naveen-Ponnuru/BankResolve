@@ -51,12 +51,11 @@ public class GrievanceServiceImpl implements GrievanceService {
         return "BRX-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
-    private String requireBankCode(User user, String roleName) {
-        String code = user.getBankCode();
-        if (code == null || code.isBlank()) {
-            throw new IllegalStateException("Misconfiguration: " + roleName + " must have a valid bank code assigned.");
+    private Long requireBankId(User user, String roleName) {
+        if (user.getBank() == null || user.getBank().getId() == null) {
+            throw new IllegalStateException("Misconfiguration: " + roleName + " must have a valid bank assigned.");
         }
-        return code;
+        return user.getBank().getId();
     }
 
     // ─── Create ───────────────────────────────────────────────────────────────
@@ -67,18 +66,18 @@ public class GrievanceServiceImpl implements GrievanceService {
         User customer = userRepository.findByEmail(customerEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", customerEmail));
 
-        String bankCodeToUse = request.getBankCode();
-        if (bankCodeToUse == null || bankCodeToUse.isBlank()) {
+        Long bankIdToUse = request.getBankId();
+        if (bankIdToUse == null) {
             if (customer.getBank() != null) {
-                bankCodeToUse = customer.getBank().getCode();
+                bankIdToUse = customer.getBank().getId();
             } else {
-                throw new IllegalArgumentException("Bank Code is required to file a grievance.");
+                throw new IllegalArgumentException("Bank ID is required to file a grievance.");
             }
         }
 
-        final String effectiveBankCode = bankCodeToUse;
-        Bank bank = bankRepository.findByCode(effectiveBankCode)
-                .orElseThrow(() -> new ResourceNotFoundException("Bank", "code", effectiveBankCode));
+        final Long effectiveBankId = bankIdToUse;
+        Bank bank = bankRepository.findById(effectiveBankId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bank", "id", effectiveBankId));
 
         // ── Phase 4: Priority Determination ──────────────────────────────────
         // Rules: category risk level + transaction amount → priority → assignee role
@@ -102,7 +101,7 @@ public class GrievanceServiceImpl implements GrievanceService {
         java.time.LocalDateTime slaDeadline = java.time.LocalDateTime.now().plusDays(slaDays);
 
         // ── Phase 3: Generate Grievance Number ────────────────────────────────
-        long count = grievanceRepository.countByBankCode(bank.getCode()) + 1;
+        long count = grievanceRepository.countByBankId(bank.getId()) + 1;
         String grievanceNumber = String.format("GRV-%s-%d-%06d",
                 bank.getCode().toUpperCase(),
                 java.time.Year.now().getValue(),
@@ -114,7 +113,6 @@ public class GrievanceServiceImpl implements GrievanceService {
                 .category(request.getCategory())
                 .transactionAmount(request.getTransactionAmount())
                 .bank(bank)
-                .bankCode(bank.getCode())
                 .customer(customer)
                 .priority(priority)
                 .slaDeadline(slaDeadline)
@@ -134,13 +132,14 @@ public class GrievanceServiceImpl implements GrievanceService {
                 "GRIEVANCE_CREATED", saved.getId());
 
         // Notify relevant bank users via team broadcasting
-        if (priority == Priority.HIGH) {
-            notificationService.notifyBankRole(bank.getId(), Role.MANAGER,
-                    "High priority grievance " + saved.getGrievanceNumber() + " has been filed and requires immediate attention.",
+        Long bankId = saved.getBank().getId();
+        if (saved.getPriority() == Priority.HIGH) {
+            notificationService.notifyBankRole(bankId, Role.MANAGER,
+                    "High priority grievance: " + saved.getTitle(),
                     "GRIEVANCE_CREATED", saved.getId());
         } else {
-            notificationService.notifyBankRole(bank.getId(), Role.STAFF,
-                    "New grievance " + saved.getGrievanceNumber() + " has been filed at your bank.",
+            notificationService.notifyBankRole(bankId, Role.STAFF,
+                    "New grievance: " + saved.getTitle(),
                     "GRIEVANCE_CREATED", saved.getId());
         }
 
@@ -196,9 +195,9 @@ public class GrievanceServiceImpl implements GrievanceService {
         } else if (role == Role.CUSTOMER) {
             grievances = grievanceRepository.findByCustomerId(user.getId());
         } else if (role == Role.MANAGER) {
-            String bankCode = requireBankCode(user, "MANAGER");
+            Long bankId = requireBankId(user, "MANAGER");
             // Manager dashboard: show escalated, high-priority, OR grievances they are assigned to/resolved (to see feedback)
-            grievances = grievanceRepository.findByBankCode(bankCode).stream()
+            grievances = grievanceRepository.findByBankId(bankId).stream()
                     .filter(g -> g.getPriority() == Priority.HIGH 
                             || g.getStatus() == GrievanceStatus.ESCALATED
                             || (g.getAssignedManager() != null && g.getAssignedManager().getId().equals(user.getId()))
@@ -206,8 +205,8 @@ public class GrievanceServiceImpl implements GrievanceService {
                     .collect(Collectors.toList());
         } else {
             // STAFF
-            String bankCode = requireBankCode(user, "STAFF");
-            List<Grievance> bankGrievances = grievanceRepository.findByBankCode(bankCode);
+            Long bankId = requireBankId(user, "STAFF");
+            List<Grievance> bankGrievances = grievanceRepository.findByBankId(bankId);
             grievances = bankGrievances.stream()
                     .filter(g -> g.getAssignedStaff() == null || g.getAssignedStaff().getId().equals(user.getId()))
                     .collect(Collectors.toList());
@@ -239,8 +238,8 @@ public class GrievanceServiceImpl implements GrievanceService {
                 throw new AccessDeniedException("Access denied: You can only view your own grievances.");
             }
         } else if (user.getRole() != Role.ADMIN) {
-            String bankCode = requireBankCode(user, user.getRole().name());
-            if (!bankCode.equals(grievance.getBankCode())) {
+            Long bankId = requireBankId(user, user.getRole().name());
+            if (!bankId.equals(grievance.getBank().getId())) {
                 throw new AccessDeniedException("Access denied: Grievance belongs to a different bank.");
             }
         }
@@ -260,14 +259,14 @@ public class GrievanceServiceImpl implements GrievanceService {
         if (staff.getRole() != Role.STAFF) {
             throw new AccessDeniedException("Only staff members can escalate grievances.");
         }
-        String bankCode = requireBankCode(staff, "STAFF");
-        if (!grievance.getBankCode().equals(bankCode)) {
+        Long bankId = requireBankId(staff, "STAFF");
+        if (!grievance.getBank().getId().equals(bankId)) {
             throw new AccessDeniedException("Cannot escalate grievance outside your bank.");
         }
 
-        List<User> managers = userRepository.findByRoleAndBankCode(Role.MANAGER, bankCode);
+        List<User> managers = userRepository.findByBankIdAndRole(bankId, Role.MANAGER);
         if (managers.isEmpty()) {
-            throw new IllegalStateException("No managers available for bank: " + bankCode);
+            throw new IllegalStateException("No managers available for bank ID: " + bankId);
         }
 
         grievance.setStatus(GrievanceStatus.ESCALATED);
@@ -277,7 +276,7 @@ public class GrievanceServiceImpl implements GrievanceService {
 
         if (saved.getBank() != null) {
             notificationService.notifyBankRole(saved.getBank().getId(), Role.MANAGER,
-                    "Grievance " + saved.getGrievanceNumber() + " has been escalated to managers. Ref: " + saved.getReferenceNumber(),
+                    "Grievance forwarded: " + saved.getTitle(),
                     "GRIEVANCE_ESCALATED", saved.getId());
         }
         return mapToDto(saved);
@@ -342,8 +341,8 @@ public class GrievanceServiceImpl implements GrievanceService {
             throw new AccessDeniedException("Customers cannot update grievance status.");
         }
         if (role != Role.ADMIN) {
-            String bankCode = requireBankCode(user, role.name());
-            if (!bankCode.equals(grievance.getBankCode())) {
+            Long bankId = requireBankId(user, role.name());
+            if (!bankId.equals(grievance.getBank().getId())) {
                 throw new AccessDeniedException("Access denied: different bank.");
             }
         }
@@ -397,12 +396,12 @@ public class GrievanceServiceImpl implements GrievanceService {
             resolved = grievanceRepository.countByCustomerIdAndStatus(user.getId(), GrievanceStatus.RESOLVED);
             highRisk = 0;
         } else {
-            String bankCode = requireBankCode(user, role.name());
-            total    = grievanceRepository.countByBankCode(bankCode);
-            pending  = grievanceRepository.countByBankCodeAndStatusIn(bankCode,
+            Long bankId = requireBankId(user, role.name());
+            total    = grievanceRepository.countByBankId(bankId);
+            pending  = grievanceRepository.countByBankIdAndStatuses(bankId,
                         List.of(GrievanceStatus.FILED, GrievanceStatus.ACCEPTED, GrievanceStatus.IN_PROGRESS));
-            resolved = grievanceRepository.countByBankCodeAndStatus(bankCode, GrievanceStatus.RESOLVED);
-            highRisk = grievanceRepository.findByBankCodeAndPriority(bankCode, Priority.HIGH).size();
+            resolved = grievanceRepository.countByBankIdAndStatus(bankId, GrievanceStatus.RESOLVED);
+            highRisk = grievanceRepository.findByBankIdAndPriority(bankId, Priority.HIGH).size();
         }
 
         return GrievanceSummaryDto.builder()
@@ -428,8 +427,8 @@ public class GrievanceServiceImpl implements GrievanceService {
         } else if (role == Role.CUSTOMER) {
             results = grievanceRepository.getCustomerMonthlyTrend(user.getId());
         } else {
-            String bankCode = requireBankCode(user, role.name());
-            results = grievanceRepository.getBankMonthlyTrend(bankCode);
+            Long bankId = requireBankId(user, role.name());
+            results = grievanceRepository.getBankMonthlyTrend(bankId);
         }
 
         return results.stream()
@@ -487,8 +486,8 @@ public class GrievanceServiceImpl implements GrievanceService {
                 throw new AccessDeniedException("You can only view history of your own grievances.");
             }
         } else if (user.getRole() != Role.ADMIN) {
-            String bankCode = requireBankCode(user, user.getRole().name());
-            if (!bankCode.equals(grievance.getBankCode())) {
+            Long bankId = requireBankId(user, user.getRole().name());
+            if (!bankId.equals(grievance.getBank().getId())) {
                 throw new AccessDeniedException("Access denied: Grievance belongs to a different bank.");
             }
         }
@@ -560,7 +559,7 @@ public class GrievanceServiceImpl implements GrievanceService {
                 .description(g.getDescription())
                 .category(g.getCategory())
                 .transactionAmount(g.getTransactionAmount())
-                .bankCode(g.getBankCode())
+                .bankId(g.getBank() != null ? g.getBank().getId() : null)
                 .status(g.getStatus())
                 .priority(g.getPriority())
                 // customer may be null if user was deleted (ON DELETE SET NULL)

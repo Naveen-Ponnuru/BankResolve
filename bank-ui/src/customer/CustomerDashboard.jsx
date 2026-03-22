@@ -43,7 +43,7 @@ const CustomerDashboard = () => {
               {user?.bankName || selectedBank?.name}
             </h3>
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              Bank Code: {user?.bankCode || selectedBank?.code} ·{" "}
+              Bank ID: {user?.bankId || selectedBank?.id} ·{" "}
               {selectedBank?.branchCount?.toLocaleString() || "N/A"} Branches · RBI
               Compliant
             </p>

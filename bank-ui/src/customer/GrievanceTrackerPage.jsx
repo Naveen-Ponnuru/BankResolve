@@ -154,7 +154,7 @@ const GrievanceTrackerPage = () => {
                 {[
                     { label: "Category",    value: grievance.category?.replace(/_/g, " ") },
                     { label: "Priority",    value: grievance.priority },
-                    { label: "Bank",        value: grievance.bankCode },
+                    { label: "Bank ID",     value: grievance.bankId },
                     { label: "Filed",       value: formatDateTime(grievance.createdAt) },
                     { label: "Updated",     value: formatDateTime(grievance.updatedAt) || "—" },
                     { label: "Resolved",    value: formatDateTime(grievance.resolvedAt) || "—" },

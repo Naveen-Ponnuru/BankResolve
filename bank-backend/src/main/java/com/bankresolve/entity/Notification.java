@@ -2,10 +2,10 @@ package com.bankresolve.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
-/**
- * Represents a persistent notification for a user.
- */
+import java.time.Instant;
+
 @Entity
 @Table(name = "notifications")
 @Getter
@@ -13,28 +13,30 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Notification extends BaseEntity {
+public class Notification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @com.fasterxml.jackson.annotation.JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false, 
-                foreignKey = @ForeignKey(name = "fk_notification_user"))
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, length = 1000)
     private String message;
+
+    @Column(nullable = false)
+    private String type; // e.g., "GRIEVANCE_CREATED", "GRIEVANCE_ESCALATED", "GRIEVANCE_RESOLVED"
+
+    @Column(name = "reference_id")
+    private Long referenceId; // Associated grievance ID
 
     @Column(name = "is_read", nullable = false)
     @Builder.Default
-    private Boolean isRead = false;
+    private boolean read = false;
 
-    @Column(name = "related_entity_id")
-    private Long relatedEntityId;
-
-    @Column(name = "type", length = 50)
-    private String type; // e.g., "GRIEVANCE_STATUS", "SLA_BREACH", "ASSIGNMENT"
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 }

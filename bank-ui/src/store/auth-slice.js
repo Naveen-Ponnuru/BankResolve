@@ -30,7 +30,7 @@ const parsedUser = safeParse("user");
 const initialAuthState = {
   jwtToken: token,
   user: parsedUser,
-  bankCode: parsedUser?.bankCode || null,
+  bankId: parsedUser?.bankId || null,
   bankName: parsedUser?.bankName || null,
   isAuthenticated: !!token && !!parsedUser,
 };
@@ -43,10 +43,10 @@ const authSlice = createSlice({
   initialState: initialAuthState,
   reducers: {
     loginSuccess(state, action) {
-      const { jwtToken, user, bankCode, bankName } = action.payload;
+      const { jwtToken, user, bankId, bankName } = action.payload;
       state.jwtToken = jwtToken;
       state.user = user;
-      state.bankCode = bankCode || user?.bankCode || null;
+      state.bankId = bankId || user?.bankId || null;
       state.bankName = bankName || user?.bankName || null;
       state.isAuthenticated = true;
 
@@ -59,7 +59,7 @@ const authSlice = createSlice({
     logout(state) {
       state.jwtToken = null;
       state.user = null;
-      state.bankCode = null;
+      state.bankId = null;
       state.bankName = null;
       state.isAuthenticated = false;
 

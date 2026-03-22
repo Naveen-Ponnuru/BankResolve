@@ -23,5 +23,5 @@ public class LoginRequestDto {
     @Size(min = 8, max = 128, message = "Password must be between 8 and 128 characters")
     private String password;
 
-    private String bankCode;
+    private Long bankId;
 }

@@ -13,7 +13,6 @@ import java.time.Instant;
 @Entity
 @Table(name = "grievances", indexes = {
         @Index(name = "idx_grievance_status",   columnList = "status"),
-        @Index(name = "idx_grievance_bank_code", columnList = "bank_code"),
         @Index(name = "idx_grievance_priority", columnList = "priority"),
         @Index(name = "idx_grievance_bank",     columnList = "bank_id"),
         @Index(name = "idx_grievance_customer", columnList = "customer_id"),
@@ -51,9 +50,6 @@ public class Grievance extends BaseEntity {
 
     @Column(name = "transaction_amount", precision = 19, scale = 2)
     private java.math.BigDecimal transactionAmount;
-
-    @Column(name = "bank_code", length = 50)
-    private String bankCode;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50, columnDefinition = "VARCHAR(50)")

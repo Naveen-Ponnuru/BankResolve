@@ -292,42 +292,42 @@ export default function Register() {
               )}
             </div>
 
-            {/* Bank Code (only for STAFF / MANAGER) */}
+            {/* Bank ID (only for STAFF / MANAGER) */}
             {(role === "STAFF" || role === "MANAGER") && (
               <div>
                 <label
-                  htmlFor="bankCode"
+                  htmlFor="bankId"
                   className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
                 >
-                  Bank Code
+                  Bank ID
                 </label>
                 <input
-                  id="bankCode"
-                  name="bankCode"
+                  id="bankId"
+                  name="bankId"
                   type="text"
-                  placeholder="Enter bank code (e.g. SBI001)"
-                  aria-label="Bank code"
-                  aria-invalid={!!formErrors.bankCode}
+                  placeholder="Enter bank ID (e.g. 1)"
+                  aria-label="Bank ID"
+                  aria-invalid={!!formErrors.bankId}
                   className={`w-full px-4 py-3 rounded-lg border-2 transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-                    formErrors.bankCode
+                    formErrors.bankId
                       ? "border-red-500 focus:border-red-600 focus:ring-red-200 dark:focus:ring-red-900"
                       : "border-gray-300 dark:border-gray-600 focus:border-blue-600 focus:ring-blue-200 dark:focus:ring-blue-900"
                   } focus:outline-none focus:ring-2`}
                 />
-                {formErrors.bankCode && (
+                {formErrors.bankId && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                    {formErrors.bankCode}
+                    {formErrors.bankId}
                   </p>
                 )}
               </div>
             )}
 
-            {/* Hidden bank code from selected bank (for CUSTOMER / ADMIN defaults) */}
-            {selectedBank?.code && (
+            {/* Hidden bank ID from selected bank (for CUSTOMER / ADMIN defaults) */}
+            {selectedBank?.id && (
               <input
                 type="hidden"
-                name="bankCodeFromContext"
-                value={selectedBank.code}
+                name="bankIdFromContext"
+                value={selectedBank.id}
               />
             )}
 

@@ -14,11 +14,11 @@ const authService = {
    * @param {string} password
    * @returns {{ user, jwtToken }}
    */
-  login: async (email, password, bankCode) => {
+  login: async (email, password, bankId) => {
     const response = await apiClient.post("/auth/login", {
       email,
       password,
-      bankCode,
+      bankId,
     });
     return response.data;
   },
@@ -29,11 +29,11 @@ const authService = {
    * @param {{ name, email, phone, password }} userData
    */
   register: async (userData) => {
-    // Ensure bankCode is included from userData or context
-    const { bankCode, bankCodeFromContext, ...rest } = userData;
+    // Ensure bankId is included from userData or context
+    const { bankId, bankIdFromContext, ...rest } = userData;
     const payload = {
       ...rest,
-      bankCode: bankCode || bankCodeFromContext || null,
+      bankId: bankId || bankIdFromContext || null,
     };
     const response = await apiClient.post("/auth/register", payload);
     return response.data;

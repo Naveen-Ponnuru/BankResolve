@@ -27,7 +27,6 @@ import lombok.RequiredArgsConstructor;
  *   <li>{@code name}    — display name</li>
  *   <li>{@code roles}   — comma-separated authority list (e.g. "ROLE_CUSTOMER")</li>
  *   <li>{@code bankId}  — currently selected bank ID</li>
- *   <li>{@code bankCode} — currently selected bank code</li>
  * </ul>
  */
 @Service
@@ -42,7 +41,7 @@ public class JwtService {
      * Build a signed JWT with all bank-grievance claims.
      */
     public String generateToken(Long userId, String email, String name,
-                                String roles, Long bankId, String bankCode) {
+                                String roles, Long bankId) {
         return Jwts.builder()
                 .issuer("BankResolve")
                 .subject(email)
@@ -51,7 +50,6 @@ public class JwtService {
                 .claim("name", name)
                 .claim("roles", roles)
                 .claim("bankId", bankId)
-                .claim("bankCode", bankCode)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis()
                         + ApplicationConstants.JWT_EXPIRATION_MS))
@@ -96,10 +94,6 @@ public class JwtService {
 
     public Long extractBankId(String token) {
         return extractClaim(token, claims -> claims.get("bankId", Long.class));
-    }
-
-    public String extractBankCode(String token) {
-        return extractClaim(token, claims -> claims.get("bankCode", String.class));
     }
 
     public String extractName(String token) {

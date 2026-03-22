@@ -21,7 +21,7 @@ public class GrievanceResponseDto {
     private String description;
     private String category;
     private BigDecimal transactionAmount;
-    private String bankCode;
+    private Long bankId;
     private GrievanceStatus status;
     private Priority priority;
     private Long customerId;

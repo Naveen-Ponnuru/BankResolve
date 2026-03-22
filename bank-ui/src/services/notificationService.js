@@ -28,10 +28,10 @@ const notificationService = {
     },
 
     /**
-     * PUT /api/notifications/mark-all-read - Mark all as read
+     * PUT /api/notifications/read-all - Mark all as read
      */
     markAllAsRead: async () => {
-        const response = await apiClient.put("/notifications/mark-all-read");
+        const response = await apiClient.put("/notifications/read-all");
         return response.data;
     },
 

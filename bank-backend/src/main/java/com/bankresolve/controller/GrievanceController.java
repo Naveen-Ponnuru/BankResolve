@@ -32,7 +32,7 @@ public class GrievanceController {
     @PostMapping
     @PreAuthorize("hasRole('CUSTOMER')")
     @Operation(summary = "File a new grievance", 
-               description = "Creates a new grievance. bankCode and customer info are derived from the authenticated user.")
+               description = "Creates a new grievance. bankId and customer info are derived from the authenticated user.")
     public ResponseEntity<GrievanceResponseDto> fileGrievance(Principal principal, @Valid @RequestBody GrievanceRequestDto request) {
         GrievanceResponseDto response = grievanceService.createGrievance(principal.getName(), request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);

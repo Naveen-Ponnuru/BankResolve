@@ -33,13 +33,12 @@ public class RegisterRequestDto {
     private String mobileNumber;
 
     /**
-     * Bank code is role-dependent:
+     * Bank ID is role-dependent:
      *  - CUSTOMER: optional
      *  - STAFF/MANAGER: required (validated in service layer)
      *  - ADMIN: optional
      */
-    @Size(max = 20, message = "Bank code must not exceed 20 characters")
-    private String bankCode;
+    private Long bankId;
 
     /**
      * Target system role for the new user.

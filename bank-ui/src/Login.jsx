@@ -50,7 +50,7 @@ export default function Login() {
         loginSuccess({
           jwtToken: actionData.jwtToken,
           user: actionData.user,
-          bankCode: actionData.bankCode,
+          bankId: actionData.bankId,
           bankName: actionData.bankName,
         }),
       );
@@ -181,7 +181,7 @@ export default function Login() {
             </div>
 
             {/* Submit Button */}
-            <input type="hidden" name="bankCode" value={selectedBank?.code || ""} />
+            <input type="hidden" name="bankId" value={selectedBank?.id || ""} />
             <button
               type="submit"
               disabled={isSubmitting}

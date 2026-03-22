@@ -8,7 +8,7 @@ export async function loginAction({ request }) {
     const loginData = {
         email: data.get("email"),
         password: data.get("password"),
-        bankCode: data.get("bankCode"),
+        bankId: data.get("bankId"),
     };
 
     const errors = {};
@@ -23,10 +23,10 @@ export async function loginAction({ request }) {
         const response = await authService.login(
             loginData.email,
             loginData.password,
-            loginData.bankCode
+            loginData.bankId
         );
-        const { user, jwtToken, bankCode, bankName } = response;
-        return { success: true, user, jwtToken, bankCode, bankName };
+        const { user, jwtToken, bankId, bankName } = response;
+        return { success: true, user, jwtToken, bankId, bankName };
     } catch (error) {
         if (error.response?.status === 401) {
             return {
@@ -55,13 +55,13 @@ export async function registerAction({ request }) {
     if (!data.password) errors.password = "Password is required";
 
     const role = data.role || "CUSTOMER";
-    let bankCode = data.bankCode;
-    if (!bankCode && data.bankCodeFromContext) {
-        bankCode = data.bankCodeFromContext;
+    let bankId = data.bankId;
+    if (!bankId && data.bankIdFromContext) {
+        bankId = data.bankIdFromContext;
     }
 
-    if (role !== "CUSTOMER" && role !== "ADMIN" && !bankCode) {
-        errors.bankCode = "Bank association is required for staff/managers";
+    if (role !== "CUSTOMER" && role !== "ADMIN" && !bankId) {
+        errors.bankId = "Bank association is required for staff/managers";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -69,13 +69,13 @@ export async function registerAction({ request }) {
     }
 
     try {
-        // Backend expects: { name, email, password, mobileNumber, bankCode, role }
+        // Backend expects: { name, email, password, mobileNumber, bankId, role }
         const registrationPayload = {
             name: data.name,
             email: data.email,
             password: data.password,
             mobileNumber: data.phone, // UI sends 'phone', backend expects 'mobileNumber'
-            bankCode: bankCode,
+            bankId: bankId,
             role: role
         };
 
