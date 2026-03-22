@@ -133,10 +133,12 @@ const TrackMyGrievances = () => {
                                 {grievances.map((g) => (
                                     <tr key={g.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
                                         <td className="px-6 py-4">
-                                            <span className="text-sm font-bold text-gray-900 dark:text-white">
-                                                #{g.id}
+                                            <span className="text-sm font-bold text-blue-600 dark:text-blue-400 font-mono">
+                                                {g.grievanceNumber || `#${g.id}`}
                                             </span>
-                                            <div className="text-[10px] text-gray-400 font-mono">{g.referenceNumber}</div>
+                                            {g.referenceNumber && (
+                                                <div className="text-[10px] text-gray-400 font-mono">{g.referenceNumber}</div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="text-sm text-gray-900 dark:text-white font-medium">

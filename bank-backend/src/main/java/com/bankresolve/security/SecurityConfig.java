@@ -60,6 +60,7 @@ public class SecurityConfig {
                     // ─── Public endpoints ─────────────────────────────────
                     auth.requestMatchers("/api/auth/**").permitAll();
                     auth.requestMatchers("/api/banks", "/api/banks/**").permitAll();
+                    auth.requestMatchers("/api/contacts", "/api/contacts/**").permitAll();
                     auth.requestMatchers("/ws/**").permitAll();
                     auth.requestMatchers("/actuator/health").permitAll();
                         auth.requestMatchers("/swagger-ui.html", "/swagger-ui/**",
@@ -135,8 +136,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));
+        config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

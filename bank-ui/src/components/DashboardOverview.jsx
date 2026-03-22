@@ -291,26 +291,30 @@ const DashboardOverview = () => {
                                                 {((user?.role === 'STAFF' || user?.role === 'MANAGER' || user?.role === 'ADMIN')) && g.status !== 'RESOLVED' && g.status !== 'REJECTED' ? (
                                                     <>
                                                         <select
-                                                            className="text-xs bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 rounded-lg py-1.5 px-3 focus:ring-0 appearance-none cursor-pointer pr-8 bg-no-repeat bg-[right_0.5rem_center] dark:text-white"
+                                                            className={`text-xs bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 rounded-lg py-1.5 px-3 focus:ring-0 appearance-none cursor-pointer pr-8 bg-no-repeat bg-[right_0.5rem_center] dark:text-white ${
+                                                                user?.role === 'STAFF' && (g.status === 'ESCALATED' || g.priority === 'HIGH') ? 'opacity-50 cursor-not-allowed' : ''
+                                                            }`}
                                                             style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")` }}
                                                             value={g.status}
                                                             onChange={(e) => handleAction(g.id, 'UPDATE_STATUS', e.target.value)}
-                                                            disabled={isProcessing}
+                                                            disabled={isProcessing || (user?.role === 'STAFF' && (g.status === 'ESCALATED' || g.priority === 'HIGH'))}
                                                         >
                                                             <option value="PENDING">Pending</option>
                                                             <option value="ACCEPTED">Accepted</option>
                                                             <option value="IN_PROGRESS">In Progress</option>
                                                             <option value="RESOLVED">Resolved</option>
                                                             <option value="REJECTED">Rejected</option>
-                                                            {g.status === 'ESCALATED' && <option value="ESCALATED">Escalated</option>}
+                                                            {(g.status === 'ESCALATED' || user?.role === 'MANAGER' || user?.role === 'ADMIN') && <option value="ESCALATED">Escalated</option>}
                                                         </select>
                                                         
                                                         {/* Reject Button (X) */}
                                                         <button
                                                             onClick={() => handleAction(g.id, 'UPDATE_STATUS', 'REJECTED')}
                                                             title="Reject Grievance"
-                                                            className="p-1.5 bg-red-50 text-red-500 border border-red-100 rounded-lg hover:bg-red-100 transition-colors"
-                                                            disabled={isProcessing}
+                                                            className={`p-1.5 bg-red-50 text-red-500 border border-red-100 rounded-lg hover:bg-red-100 transition-colors ${
+                                                                user?.role === 'STAFF' && (g.status === 'ESCALATED' || g.priority === 'HIGH') ? 'opacity-50 cursor-not-allowed' : ''
+                                                            }`}
+                                                            disabled={isProcessing || (user?.role === 'STAFF' && (g.status === 'ESCALATED' || g.priority === 'HIGH'))}
                                                         >
                                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -322,13 +326,13 @@ const DashboardOverview = () => {
                                                 )}
 
                                                 {/* Quick Forward for STAFF */}
-                                                {user?.role === 'STAFF' && g.priority === 'HIGH' && g.status !== 'RESOLVED' && g.status !== 'ESCALATED' && (
+                                                {user?.role === 'STAFF' && g.status !== 'RESOLVED' && g.status !== 'ESCALATED' && (
                                                     <button
                                                         onClick={() => handleAction(g.id, 'FORWARD')}
-                                                        className="px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-100 rounded-lg font-bold text-xs hover:bg-orange-100 transition-colors"
+                                                        className="px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-100 rounded-lg font-bold text-xs hover:bg-orange-100 transition-colors whitespace-nowrap"
                                                         disabled={isProcessing}
                                                     >
-                                                        Forward
+                                                        Forward to Manager
                                                     </button>
                                                 )}
                                             </div>

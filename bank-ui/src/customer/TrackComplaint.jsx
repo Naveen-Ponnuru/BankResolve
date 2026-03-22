@@ -99,14 +99,31 @@ const TrackComplaint = () => {
             { id: 'RESOLVED', title: 'Resolved', icon: faCheckCircle }
         ];
 
-        return requiredSteps.map((step) => {
+        const currentStatus = complaint.status;
+        const currentStepIdx = requiredSteps.findIndex(s => s.id === currentStatus);
+        const isTerminal = ["RESOLVED", "REJECTED", "WITHDRAWN"].includes(currentStatus);
+
+        return requiredSteps.map((step, idx) => {
             const historyEntry = history.find(h => h.status === step.id);
+            // It's complete if there's a history match, OR if we're at a later/terminal status
+            const isComplete = !!historyEntry || (currentStepIdx !== -1 && idx <= currentStepIdx) || isTerminal;
+            
+            // Try to find a sensible date if missing
+            let dateStr = 'Pending';
+            if (historyEntry) {
+                dateStr = new Date(historyEntry.timestamp).toLocaleString();
+            } else if (isComplete && complaint) {
+                if (step.id === 'FILED') dateStr = new Date(complaint.createdAt).toLocaleString();
+                else if (step.id === 'RESOLVED' && complaint.resolvedAt) dateStr = new Date(complaint.resolvedAt).toLocaleString();
+                else if (complaint.updatedAt) dateStr = new Date(complaint.updatedAt).toLocaleString();
+            }
+
             return {
                 id: step.id,
                 title: step.title,
-                description: historyEntry?.note || (historyEntry ? `Status updated to ${step.title}` : ''),
-                date: historyEntry ? new Date(historyEntry.timestamp).toLocaleString() : 'Pending',
-                isComplete: !!historyEntry,
+                description: historyEntry?.note || (historyEntry ? `Status updated to ${step.title}` : (isComplete ? `Status: ${step.title}` : '')),
+                date: dateStr,
+                isComplete: isComplete,
                 icon: step.icon
             };
         });

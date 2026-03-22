@@ -1,0 +1,50 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Bank Grievance Management System — Application Configuration
+# ══════════════════════════════════════════════════════════════════════════════
+
+spring:
+  application:
+    name: bank-backend
+
+  # ─── Database ────────────────────────────────────────────────────────────────
+  datasource:
+    url: jdbc:mysql://localhost:3307/bankresolve?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+  # ─── DevTools ────────────────────────────────────────────────────────────────
+  devtools:
+    restart:
+      enabled: true
+      exclude: "static/**,public/**,**/*.log"
+
+# ─── Server ──────────────────────────────────────────────────────────────────
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# ─── JWT ─────────────────────────────────────────────────────────────────────
+JWT_SECRET: BankResolveSecretKeyForJWTSigning2026!
+
+# ─── Actuator ────────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.bankresolve: DEBUG
+    org.springframework.security: INFO

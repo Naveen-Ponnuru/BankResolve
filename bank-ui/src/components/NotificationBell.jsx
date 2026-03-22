@@ -3,53 +3,59 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBell, faCheckDouble, faCircle } from "@fortawesome/free-solid-svg-icons";
 import notificationService from "../services/notificationService";
 import { toast } from "react-toastify";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { selectUser } from "../store/auth-slice";
+import { setNotifications, addNotification, markRead } from "../store/notification-slice";
 
 const NotificationBell = () => {
-    const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
+    const dispatch = useDispatch();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
+    
     const user = useSelector(selectUser);
+    const notifications = useSelector((state) => state.notifications.notifications);
+    const unreadCount = useSelector((state) => state.notifications.unreadCount);
 
     const fetchNotifications = async () => {
         try {
-            const [data, count] = await Promise.all([
-                notificationService.getNotifications(),
-                notificationService.getUnreadCount()
-            ]);
-            setNotifications(data.slice(0, 10)); // Show last 10
-            setUnreadCount(count);
+            const data = await notificationService.getNotifications();
+            dispatch(setNotifications(data));
         } catch (error) {
             console.error("Failed to fetch notifications:", error);
+            // toast.error("Could not sync notifications");
         }
     };
+
+    const hasFetched = useRef(false);
 
     useEffect(() => {
         if (!user?.id) return;
 
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchNotifications();
+        if (!hasFetched.current) {
+            hasFetched.current = true;
+            fetchNotifications();
+        }
 
-        // WebSocket Subscription (STOMP)
         const subscription = notificationService.subscribe(user.id, (newNotif) => {
-            setNotifications(prev => {
-                if (prev.some(n => n.id === newNotif.id)) return prev;
-                return [newNotif, ...prev].slice(0, 10);
+            // Check Redux array via a callback to avoid stale closure if direct selection fails. Actually, Redux `notifications` state might be stale here, so just dispatching is safer if addNotification is smart enough. The user requests simple fixes.
+            dispatch(addNotification(newNotif));
+            
+            toast.info(`🔔 ${newNotif.message}`, { 
+                toastId: `notif-${newNotif.id}`,
+                position: "top-right",
+                autoClose: 5000
             });
-            setUnreadCount(prev => prev + 1);
-            toast.info(`🔔 ${newNotif.message}`, { toastId: `notif-${newNotif.id}` });
         });
 
         return () => {
             subscription.disconnect();
         };
-    }, [user?.id]);
+    }, [user?.id, dispatch]); // Added dispatch to deps
 
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                if (!document.body.contains(event.target)) return;
                 setIsOpen(false);
             }
         };
@@ -61,18 +67,19 @@ const NotificationBell = () => {
         e.stopPropagation();
         e.preventDefault();
         try {
+            // Phase 8: Enterprise stability - update UI instantly
             await notificationService.markAsRead(id);
-            setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-            setUnreadCount(prev => Math.max(0, prev - 1));
+            dispatch(markRead(id));
         } catch (error) {
             console.error("Failed to mark as read:", error);
+            toast.error("Failed to update notification status");
         }
     };
 
     const getTypeIcon = (type) => {
         if (type?.includes("RESOLVED")) return "text-green-500";
         if (type?.includes("WITHDRAWN")) return "text-gray-400";
-        if (type?.includes("STATUS")) return "text-blue-500";
+        if (type?.includes("STATUS") || type?.includes("CREATED")) return "text-blue-500";
         return "text-blue-400";
     };
 
@@ -109,7 +116,7 @@ const NotificationBell = () => {
                                 <p className="text-sm text-gray-500 dark:text-gray-400">No notifications yet</p>
                             </div>
                         ) : (
-                            notifications.map((n) => (
+                            notifications.slice(0, 15).map((n) => (
                                 <div 
                                     key={n.id} 
                                     className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group relative ${!n.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
@@ -123,7 +130,7 @@ const NotificationBell = () => {
                                                 {n.message}
                                             </p>
                                             <p className="text-[10px] text-gray-400 mt-1 uppercase font-medium">
-                                                {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently"}
                                             </p>
                                         </div>
                                         {!n.isRead && (
@@ -142,8 +149,17 @@ const NotificationBell = () => {
                     </div>
 
                     <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 text-center">
-                        <button className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:underline">
-                            View All Notifications
+                        <button 
+                            onClick={async () => {
+                                try {
+                                    await notificationService.markAllAsRead();
+                                    fetchNotifications(); // Refresh list to reflect changes
+                                    setIsOpen(false);
+                                } catch(e) { console.error("Could not mark all as read", e); }
+                            }}
+                            className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:underline w-full py-1"
+                        >
+                            Mark All As Read
                         </button>
                     </div>
                 </div>

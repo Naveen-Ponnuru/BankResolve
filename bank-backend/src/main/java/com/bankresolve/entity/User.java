@@ -7,29 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
-/**
- * Represents a user in the system (Customer, Staff, Manager, or Admin).
- *
- * <pre>
- * ┌──────────────────────────────────┐
- * │              User                │
- * ├──────────────────────────────────┤
- * │  id           : Long (PK)       │
- * │  bank_id      : Long (FK→Bank)  │
- * │  role_id      : Long (FK→roles) │  (not used by JPA — managed via role enum)
- * │  full_name    : String          │
- * │  email        : String (UQ)     │
- * │  password     : String (hash)   │
- * │  phone        : String          │
- * │  role         : Role (VARCHAR)  │
- * │  enabled      : Boolean         │
- * │  created_at   : Instant         │
- * └──────────────────────────────────┘
- *
- *  Relationships:
- *    User ──ManyToOne──▶ Bank
- * </pre>
- */
+
 @Entity
 @Table(name = "users", uniqueConstraints = {
         @UniqueConstraint(columnNames = "email")

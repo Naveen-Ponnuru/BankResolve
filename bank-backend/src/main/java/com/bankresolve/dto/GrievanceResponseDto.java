@@ -16,6 +16,7 @@ import java.time.Instant;
 public class GrievanceResponseDto {
     private Long id;
     private String referenceNumber;
+    private String grievanceNumber;
     private String title;
     private String description;
     private String category;

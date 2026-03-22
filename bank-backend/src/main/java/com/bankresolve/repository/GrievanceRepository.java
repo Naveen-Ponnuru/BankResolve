@@ -66,6 +66,8 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
 
     // ─── By Status / Priority ─────────────────────────────────────────────────
     List<Grievance> findByStatusInAndTargetSlaBeforeAndIsEscalatedFalse(List<GrievanceStatus> statuses, java.time.Instant now);
+    
+    List<Grievance> findByStatusInAndSlaDeadlineBeforeAndIsEscalatedFalse(List<GrievanceStatus> statuses, java.time.LocalDateTime now);
 
     List<Grievance> findByCustomerIdAndPriority(Long customerId, Priority priority);
     List<Grievance> findByStatus(GrievanceStatus status);

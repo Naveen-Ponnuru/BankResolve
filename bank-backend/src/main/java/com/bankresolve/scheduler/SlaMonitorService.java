@@ -34,11 +34,17 @@ public class SlaMonitorService {
     public void sweepBreachedGrievances() {
         log.info("SLA Monitor: Starting sweep for breached grievances...");
         
-        List<GrievanceStatus> activeStatuses = List.of(GrievanceStatus.FILED, GrievanceStatus.PENDING);
+        // All non-terminal statuses that can breach SLA
+        List<GrievanceStatus> activeStatuses = List.of(
+                GrievanceStatus.FILED,
+                GrievanceStatus.PENDING,
+                GrievanceStatus.ACCEPTED,
+                GrievanceStatus.IN_PROGRESS
+        );
         
-        // Find all active grievances where the targetSla is before now and not already escalated
-        List<Grievance> breachedGrievances = grievanceRepository.findByStatusInAndTargetSlaBeforeAndIsEscalatedFalse(
-                activeStatuses, Instant.now()
+        // Find all active grievances where the slaDeadline is before now and not already escalated
+        List<Grievance> breachedGrievances = grievanceRepository.findByStatusInAndSlaDeadlineBeforeAndIsEscalatedFalse(
+                activeStatuses, java.time.LocalDateTime.now()
         );
 
         if (breachedGrievances.isEmpty()) {
@@ -52,23 +58,34 @@ public class SlaMonitorService {
             grievance.setStatus(GrievanceStatus.ESCALATED);
             grievance.setIsEscalated(true);
             
-            // Notify Customer
-            notificationService.notifyUser(grievance.getCustomer(), 
-                    "Your grievance " + grievance.getReferenceNumber() + " has been escalated due to SLA breach.",
+            // Assign to Manager
+            List<User> managers = userRepository.findByBankIdAndRole(grievance.getBank().getId(), Role.MANAGER);
+            if (!managers.isEmpty()) {
+                grievance.setAssignedManager(managers.get(0));
+            }
+
+            // Build the customer-facing grievance identifier
+            String grvNum = grievance.getGrievanceNumber() != null
+                    ? grievance.getGrievanceNumber()
+                    : grievance.getReferenceNumber();
+
+            // Notify Customer — WebSocket → /topic/notifications/{customerId}
+            notificationService.notifyUser(grievance.getCustomer(),
+                    "Your complaint " + grvNum + " has been escalated due to SLA breach. A manager will handle it.",
                     "SLA_BREACH", grievance.getId());
 
-            // Notify Staff if assigned
+            // Notify Staff if assigned — WebSocket → /topic/notifications/{staffId}
             if (grievance.getAssignedStaff() != null) {
-                notificationService.notifyUser(grievance.getAssignedStaff(), 
-                        "URGENT: Grievance " + grievance.getReferenceNumber() + " assigned to you has breached SLA and been escalated.",
+                notificationService.notifyUser(grievance.getAssignedStaff(),
+                        "URGENT: Complaint " + grvNum + " has breached SLA and been escalated to Manager.",
                         "SLA_BREACH", grievance.getId());
             }
 
-            // Notify Bank Managers
-            List<User> managers = userRepository.findByBankIdAndRole(grievance.getBank().getId(), Role.MANAGER);
-            for (User manager : managers) {
-                notificationService.notifyUser(manager, 
-                        "SLA ALERT: Grievance " + grievance.getReferenceNumber() + " has breached SLA and requires attention.",
+            // Notify Bank Managers — WebSocket → /topic/notifications/{managerId}
+            List<User> bankManagers = userRepository.findByBankIdAndRole(grievance.getBank().getId(), Role.MANAGER);
+            for (User manager : bankManagers) {
+                notificationService.notifyUser(manager,
+                        "SLA ALERT: Complaint " + grvNum + " has been escalated to you. Please action immediately.",
                         "SLA_BREACH", grievance.getId());
             }
         }

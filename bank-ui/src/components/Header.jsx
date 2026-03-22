@@ -258,10 +258,15 @@ const Header = () => {
             <button
               type="button"
               onClick={() => setMobileOpen((o) => !o)}
-              className="p-2 text-gray-700 dark:text-gray-200"
+              className="p-2 text-gray-700 dark:text-gray-200 relative"
               aria-label="Toggle mobile menu"
               aria-expanded={mobileOpen}
             >
+              {isAuthenticated && (
+                <div className="absolute -top-1 -left-1 scale-75">
+                  <NotificationBell />
+                </div>
+              )}
               <FontAwesomeIcon icon={mobileOpen ? faTimes : faBars} />
             </button>
           </div>

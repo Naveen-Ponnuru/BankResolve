@@ -5,21 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
-/**
- * Represents a bank registered in the system.
- * A bank can have many users and many grievances.
- *
- * <pre>
- * ┌──────────────────────────────┐
- * │            Bank              │
- * ├──────────────────────────────┤
- * │  id          : Long (PK)    │
- * │  name        : String       │
- * │  code        : String (UQ)  │
- * │  created_at  : Instant      │
- * └──────────────────────────────┘
- * </pre>
- */
 @Entity
 @Table(name = "banks")
 @Getter

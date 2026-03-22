@@ -12,34 +12,27 @@ import PublicLayout from "./layout/PublicLayout.jsx";
 import SkeletonLoader from "./ui/SkeletonLoader.jsx";
 import ErrorBoundary from "./ui/ErrorBoundary.jsx";
 import { ROLES } from "./constants/roles.js";
-
 // Page Components
 import Login from "./Login.jsx";
 import Register from "./Register.jsx";
 import Unauthorized from "./Unauthorized.jsx";
-
 // Auth Actions
 import { loginAction, registerAction } from "./actions/authActions.js";
-
 // public pages
 import Home from "./pages/public/Home.jsx";
 import About from "./pages/public/About.jsx";
 import Contact from "./pages/public/Contact.jsx";
-
 // routing
 import {
   createBrowserRouter,
   createRoutesFromElements,
   Route,
 } from "react-router-dom";
-
 // redux
 import { Provider } from "react-redux";
 import store from "./store/store.js";
-
 // app components
 import RootShell from "./RootShell.jsx";
-
 /* =======================
    Lazy Dashboard Imports
  ======================= */
@@ -53,10 +46,9 @@ const Feedback = lazy(() => import("./customer/Feedback.jsx"));
 const StaffDashboard = lazy(() => import("./staff/StaffDashboard.jsx"));
 const ManagerDashboard = lazy(() => import("./manager/ManagerDashboard.jsx"));
 const AdminDashboard = lazy(() => import("./admin/AdminDashboard.jsx"));
-
-/* =======================
+/* ====================
    ROUTES
- ======================= */
+ =====================*/
 const routeDefinitions = createRoutesFromElements(
   <Route element={<AppShell />} errorElement={<ErrorBoundary />}>
     {/* ============ PUBLIC AREA ============ */}
@@ -66,7 +58,7 @@ const routeDefinitions = createRoutesFromElements(
       <Route path="/contact" element={<Contact />} />
     </Route>
 
-    {/* ============ BANK SYSTEM ============ */}
+    {/* ============ BANK SYSTEM ========= */}
     <Route element={<AppLayout />}>
       {/* 🔐 Auth */}
       <Route element={<AuthLayout />}>
@@ -75,7 +67,7 @@ const routeDefinitions = createRoutesFromElements(
         <Route path="unauthorized" element={<Unauthorized />} />
       </Route>
 
-      {/* ✅ PROTECTED DASHBOARDS */}
+      {/*  PROTECTED DASHBOARDS */}
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           {/* 👤 CUSTOMER */}
@@ -93,7 +85,7 @@ const routeDefinitions = createRoutesFromElements(
             <Route
               path="customer/file-grievance"
               element={
-                <Suspense fallback={<SkeletonLoader type="form" />}>
+                <Suspense fallback={<SkeletonLoader  type="form" />}>
                   <FileGrievance />
                 </Suspense>
               }

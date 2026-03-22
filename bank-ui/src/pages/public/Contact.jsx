@@ -6,6 +6,7 @@ import {
   faMapMarkerAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-toastify";
+import apiClient from "../../api/apiClient";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -26,12 +27,24 @@ const Contact = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Map to Ecommerce ContactRequestDto format
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        mobileNumber: formData.phone,
+        message: formData.subject ? `[${formData.subject}] ${formData.message}` : formData.message,
+      };
+
+      await apiClient.post("/contacts", payload);
       toast.success("Message sent successfully! We'll get back to you soon.");
       setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+    } catch (error) {
+      console.error("Failed to submit contact form", error);
+      toast.error(error.response?.data?.message || "Failed to submit message. Please try again.");
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const officeLocations = [

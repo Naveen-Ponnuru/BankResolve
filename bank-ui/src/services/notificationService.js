@@ -28,6 +28,14 @@ const notificationService = {
     },
 
     /**
+     * PUT /api/notifications/mark-all-read - Mark all as read
+     */
+    markAllAsRead: async () => {
+        const response = await apiClient.put("/notifications/mark-all-read");
+        return response.data;
+    },
+
+    /**
      * WebSocket Subscription (STOMP over SockJS)
      */
     subscribe: (userId, onMessage) => {
@@ -45,6 +53,7 @@ const notificationService = {
             }
             const topic = `/topic/notifications/${userId}`;
             stompClient.subscribe(topic, (message) => {
+                console.log(`DEBUG: Notification received on WS for topic ${topic}:`, message.body);
                 if (message.body && isActive) {
                     onMessage(JSON.parse(message.body));
                 }

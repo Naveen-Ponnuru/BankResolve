@@ -1,5 +1,4 @@
 package com.bankresolve.controller;
-
 import com.bankresolve.dto.BankDto;
 import com.bankresolve.service.BankService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
 import java.util.List;
 
 /**
@@ -21,12 +19,10 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Banks", description = "Public bank listing endpoint")
 public class BankController {
-
     private final BankService bankService;
-
     @GetMapping
     @Operation(summary = "List all banks",
-               description = "Returns all registered banks. Public — no JWT required. Used for registration dropdown.")
+               description = "Returns all registered banks. Public — no JWT required.Used for registration dropdown.")
     public ResponseEntity<List<BankDto>> getAllBanks() {
         return ResponseEntity.ok(bankService.getAllBanks());
     }

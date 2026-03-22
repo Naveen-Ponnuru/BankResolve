@@ -96,12 +96,25 @@ const GrievanceTrackerPage = () => {
     /* Which steps are "done" for this grievance */
     const currentStatus = grievance?.status;
     const isTerminal = TERMINAL_STATUSES.includes(currentStatus);
-    const stepsToShow = currentStatus === "ESCALATED"
+    
+    // Always include ESCALATED if it was ever escalated
+    const wasEscalated = grievance?.isEscalated || history.some(h => h.status === "ESCALATED");
+    const stepsToShow = wasEscalated
         ? STATUS_STEPS
         : STATUS_STEPS.filter(s => s.key !== "ESCALATED");
 
-    const completedKeys = new Set(history.map(h => h.newStatus || h.status || h.toStatus));
+    // Calculate completed keys based on progression
+    const completedKeys = new Set(history.map(h => h.status));
     if (grievance) completedKeys.add(currentStatus);
+
+    // If a later step is complete, earlier steps in the workflow are implied to be complete
+    const currentStepIdx = stepsToShow.findIndex(s => s.key === currentStatus);
+    if (currentStepIdx !== -1) {
+        for (let i = 0; i <= currentStepIdx; i++) {
+            completedKeys.add(stepsToShow[i].key);
+        }
+    }
+    // Terminal steps like REJECTED/WITHDRAWN will rely on their history
 
     if (loading) {
         return (
@@ -123,9 +136,16 @@ const GrievanceTrackerPage = () => {
                 </button>
                 <div>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                        Grievance #{grievance.id} — {grievance.title}
+                        {grievance.title}
                     </h1>
-                    <p className="text-xs font-mono text-gray-400">{grievance.referenceNumber}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        {grievance.grievanceNumber && (
+                            <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded">
+                                {grievance.grievanceNumber}
+                            </span>
+                        )}
+                        <p className="text-xs font-mono text-gray-400">{grievance.referenceNumber}</p>
+                    </div>
                 </div>
             </div>
 

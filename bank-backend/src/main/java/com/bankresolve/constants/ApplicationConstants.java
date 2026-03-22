@@ -10,13 +10,13 @@ public final class ApplicationConstants {
         throw new AssertionError("Utility class — do not instantiate");
     }
 
-    // ─── JWT ──────────────────────────────────────────────────────────────────
+    // ─── JWT ────
     public static final String JWT_SECRET_KEY      = "JWT_SECRET";
     public static final String JWT_SECRET_DEFAULT   = "BankResolveSecretKeyForJWTSigning2026!";
     public static final String JWT_HEADER           = "Authorization";
     public static final long   JWT_EXPIRATION_MS    = 24 * 60 * 60 * 1000L; // 24 hours
 
-    // ─── Grievance Status ─────────────────────────────────────────────────────
+    // ─── Grievance Status ──
     public static final String STATUS_OPEN          = "OPEN";
     public static final String STATUS_IN_PROGRESS   = "IN_PROGRESS";
     public static final String STATUS_ESCALATED     = "ESCALATED";

@@ -9,26 +9,7 @@ import lombok.*;
 
 import java.time.Instant;
 
-/**
- * Represents a customer grievance / complaint.
- *
- * <pre>
- * ┌─────────────────────────────────────────┐
- * │              Grievance                  │
- * ├─────────────────────────────────────────┤
- * │  id                : Long (PK)         │
- * │  bank_id           : Long (FK→Bank)    │
- * │  customer_id       : Long (FK→User)    │
- * │  assigned_staff_id   : Long (FK→User)    │
- * │  assigned_manager_id : Long (FK→User)    │
- * │  title               : String            │
- * │  description         : String (TEXT)     │
- * │  status              : VARCHAR(50)       │
- * │  priority            : VARCHAR(50)       │
- * │  created_at          : Instant           │
- * └─────────────────────────────────────────┘
- * </pre>
- */
+
 @Entity
 @Table(name = "grievances", indexes = {
         @Index(name = "idx_grievance_status",   columnList = "status"),
@@ -61,6 +42,9 @@ public class Grievance extends BaseEntity {
 
     @Column(name = "reference_number", unique = true, nullable = false, length = 50)
     private String referenceNumber;
+
+    @Column(name = "grievance_number", unique = true, length = 50)
+    private String grievanceNumber;
 
     @Column(name = "category", length = 100)
     private String category;
@@ -118,6 +102,9 @@ public class Grievance extends BaseEntity {
 
     @Column(name = "target_sla")
     private Instant targetSla;
+
+    @Column(name = "sla_deadline")
+    private java.time.LocalDateTime slaDeadline;
 
     @Column(name = "feedback_rating")
     private Integer feedbackRating;

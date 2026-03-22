@@ -80,9 +80,33 @@ public class GrievanceServiceImpl implements GrievanceService {
         Bank bank = bankRepository.findByCode(effectiveBankCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Bank", "code", effectiveBankCode));
 
-        Priority priority = request.getPriority() != null ? request.getPriority() : Priority.NORMAL;
-        Instant targetSla = Instant.now().plus(
-                priority == Priority.HIGH ? SLA_HOURS_HIGH : SLA_HOURS_NORMAL, ChronoUnit.HOURS);
+        // ── Phase 4: Priority Determination ──────────────────────────────────
+        // Rules: category risk level + transaction amount → priority → assignee role
+        Priority priority = determinePriority(request.getCategory(), request.getTransactionAmount());
+
+        // Auto-assign HIGH priority grievances to a manager; others remain for staff pickup
+        User assignedManager = null;
+        if (priority == Priority.HIGH) {
+            List<User> managers = userRepository.findByBankIdAndRole(bank.getId(), Role.MANAGER);
+            if (!managers.isEmpty()) {
+                assignedManager = managers.get(0);
+            }
+        }
+
+        // ── Phase 5: SLA Deadline ─────────────────────────────────────────────
+        int slaDays = switch (priority) {
+            case HIGH   -> 3;
+            case MEDIUM -> 5;
+            default     -> 7;   // LOW / NORMAL
+        };
+        java.time.LocalDateTime slaDeadline = java.time.LocalDateTime.now().plusDays(slaDays);
+
+        // ── Phase 3: Generate Grievance Number ────────────────────────────────
+        long count = grievanceRepository.countByBankCode(bank.getCode()) + 1;
+        String grievanceNumber = String.format("GRV-%s-%d-%06d",
+                bank.getCode().toUpperCase(),
+                java.time.Year.now().getValue(),
+                count);
 
         Grievance grievance = Grievance.builder()
                 .title(request.getTitle())
@@ -93,18 +117,67 @@ public class GrievanceServiceImpl implements GrievanceService {
                 .bankCode(bank.getCode())
                 .customer(customer)
                 .priority(priority)
-                .targetSla(targetSla)
+                .slaDeadline(slaDeadline)
                 .status(GrievanceStatus.FILED)
                 .referenceNumber(generateReferenceNumber())
+                .grievanceNumber(grievanceNumber)
+                .assignedManager(assignedManager)
                 .build();
         grievance.setCreatedBy(customerEmail);
 
         Grievance saved = grievanceRepository.save(grievance);
         addHistoryRecord(saved, GrievanceStatus.FILED, customerEmail, "Grievance filed successfully.");
+
+        // Notify customer
         notificationService.notifyUser(customer,
-                "Your grievance has been filed. Ref: " + saved.getReferenceNumber(),
+                "Your grievance has been filed. Ref: " + saved.getGrievanceNumber(),
                 "GRIEVANCE_CREATED", saved.getId());
+
+        // Notify relevant bank users via team broadcasting
+        if (priority == Priority.HIGH) {
+            notificationService.notifyBankRole(bank.getId(), Role.MANAGER,
+                    "High priority grievance " + saved.getGrievanceNumber() + " has been filed and requires immediate attention.",
+                    "GRIEVANCE_CREATED", saved.getId());
+        } else {
+            notificationService.notifyBankRole(bank.getId(), Role.STAFF,
+                    "New grievance " + saved.getGrievanceNumber() + " has been filed at your bank.",
+                    "GRIEVANCE_CREATED", saved.getId());
+        }
+
         return mapToDto(saved);
+    }
+
+    /**
+     * Determines grievance priority based on category risk and transaction amount.
+     *
+     * HIGH  → fraud, unauthorized transactions, account blocks, large amounts (≥ ₹1,00,000)
+     * MEDIUM → ATM issues, cheque issues, mid-range amounts (≥ ₹10,000)
+     * LOW   → everything else (UPI small fails, internet banking queries, etc.)
+     */
+    private Priority determinePriority(String category, java.math.BigDecimal amount) {
+        if (category != null) {
+            // HIGH risk categories — always escalate to manager
+            if (category.matches(
+                    "FRAUD|UNAUTHORIZED_TRANSACTION|ACCOUNT_BLOCK|CREDIT_CARD_FRAUD|" +
+                    "UPI_FRAUD|PHISHING|IDENTITY_THEFT|ACCOUNT_COMPROMISED|" +
+                    "CARD_BLOCKED|DEMAT_ISSUE")) {
+                return Priority.HIGH;
+            }
+            // MEDIUM risk categories
+            if (category.matches(
+                    "ATM_CASH_NOT_DISPENSED|TRANSACTION_DISPUTE|CHEQUE_BOUNCE|" +
+                    "LOAN_ISSUE|INTEREST_DISCREPANCY|NEFT_RTGS_ISSUE")) {
+                return Priority.MEDIUM;
+            }
+        }
+
+        // Amount-based escalation (overrides category if higher)
+        if (amount != null) {
+            if (amount.compareTo(new java.math.BigDecimal("100000")) >= 0) return Priority.HIGH;
+            if (amount.compareTo(new java.math.BigDecimal("10000"))  >= 0) return Priority.MEDIUM;
+        }
+
+        return Priority.LOW;
     }
 
     // ─── List ─────────────────────────────────────────────────────────────────
@@ -124,7 +197,13 @@ public class GrievanceServiceImpl implements GrievanceService {
             grievances = grievanceRepository.findByCustomerId(user.getId());
         } else if (role == Role.MANAGER) {
             String bankCode = requireBankCode(user, "MANAGER");
-            grievances = grievanceRepository.findByBankCode(bankCode);
+            // Manager dashboard: show escalated, high-priority, OR grievances they are assigned to/resolved (to see feedback)
+            grievances = grievanceRepository.findByBankCode(bankCode).stream()
+                    .filter(g -> g.getPriority() == Priority.HIGH 
+                            || g.getStatus() == GrievanceStatus.ESCALATED
+                            || (g.getAssignedManager() != null && g.getAssignedManager().getId().equals(user.getId()))
+                            || (g.getResolvedBy() != null && g.getResolvedBy().getId().equals(user.getId())))
+                    .collect(Collectors.toList());
         } else {
             // STAFF
             String bankCode = requireBankCode(user, "STAFF");
@@ -196,9 +275,9 @@ public class GrievanceServiceImpl implements GrievanceService {
         Grievance saved = grievanceRepository.save(grievance);
         addHistoryRecord(saved, GrievanceStatus.ESCALATED, staffEmail, "Escalated to Manager");
 
-        if (saved.getAssignedManager() != null) {
-            notificationService.notifyUser(saved.getAssignedManager(),
-                    "Grievance escalated to you. Ref: " + saved.getReferenceNumber(),
+        if (saved.getBank() != null) {
+            notificationService.notifyBankRole(saved.getBank().getId(), Role.MANAGER,
+                    "Grievance " + saved.getGrievanceNumber() + " has been escalated to managers. Ref: " + saved.getReferenceNumber(),
                     "GRIEVANCE_ESCALATED", saved.getId());
         }
         return mapToDto(saved);
@@ -247,7 +326,7 @@ public class GrievanceServiceImpl implements GrievanceService {
         return mapToDto(saved);
     }
 
-    // ─── Update Status ────────────────────────────────────────────────────────
+    // ─── Update Status ──────────────────────────────────────────────────────
 
     @Override
     @Transactional
@@ -259,6 +338,7 @@ public class GrievanceServiceImpl implements GrievanceService {
 
         Role role = user.getRole();
         if (role == Role.CUSTOMER) {
+
             throw new AccessDeniedException("Customers cannot update grievance status.");
         }
         if (role != Role.ADMIN) {
@@ -379,7 +459,17 @@ public class GrievanceServiceImpl implements GrievanceService {
 
         grievance.setFeedbackRating(feedback.getRating());
         grievance.setFeedbackComment(feedback.getComment());
-        return mapToDto(grievanceRepository.save(grievance));
+        Grievance saved = grievanceRepository.save(grievance);
+
+        // Notify the specific resolver about the feedback (Targeted Enterprise Notification)
+        User resolver = saved.getResolvedBy();
+        if (resolver != null) {
+            notificationService.notifyUser(resolver,
+                    "New feedback received for your resolution of grievance " + saved.getGrievanceNumber() + ": " + feedback.getRating() + " stars",
+                    "GRIEVANCE_FEEDBACK", saved.getId());
+        }
+
+        return mapToDto(saved);
     }
 
     // ─── History ──────────────────────────────────────────────────────────────
@@ -465,6 +555,7 @@ public class GrievanceServiceImpl implements GrievanceService {
         return GrievanceResponseDto.builder()
                 .id(g.getId())
                 .referenceNumber(g.getReferenceNumber())
+                .grievanceNumber(g.getGrievanceNumber())
                 .title(g.getTitle())
                 .description(g.getDescription())
                 .category(g.getCategory())

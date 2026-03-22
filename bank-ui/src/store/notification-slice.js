@@ -14,10 +14,13 @@ const notificationSlice = createSlice({
             state.unreadCount = action.payload.filter((n) => !n.isRead).length;
         },
         addNotification: (state, action) => {
-            // Add the new notification at the top of the list
-            state.notifications.unshift(action.payload);
-            if (!action.payload.isRead) {
-                state.unreadCount += 1;
+            const exists = state.notifications.some(n => n.id === action.payload.id);
+            if (!exists) {
+                // Add the new notification at the top of the list
+                state.notifications.unshift(action.payload);
+                if (!action.payload.isRead) {
+                    state.unreadCount += 1;
+                }
             }
         },
         markRead: (state, action) => {

@@ -23,6 +23,14 @@ const CATEGORY_OPTIONS = [
     { value: "OTHER", label: "Other" },
 ];
 
+const CATEGORIES_WITH_AMOUNT = [
+    "TRANSACTION_FAILURE",
+    "UPI_FRAUD",
+    "CREDIT_CARD_FRAUD",
+    "ATM_ISSUE",
+    "LOAN_QUERY"
+];
+
 const FileGrievance = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
@@ -44,11 +52,12 @@ const FileGrievance = () => {
         setIsSubmitting(true);
 
         try {
+            const isAmountRequired = CATEGORIES_WITH_AMOUNT.includes(formData.category);
             const payload = {
                 title: formData.title,
                 category: formData.category,
                 description: formData.description,
-                transactionAmount: formData.transactionAmount ? parseFloat(formData.transactionAmount) : null
+                transactionAmount: isAmountRequired && formData.transactionAmount ? parseFloat(formData.transactionAmount) : null
             };
 
             await grievanceService.createGrievance(payload);
@@ -98,20 +107,23 @@ const FileGrievance = () => {
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="flex items-center text-sm font-bold text-gray-700 dark:text-gray-300">
-                                <FontAwesomeIcon icon={faIndianRupeeSign} className="mr-2 text-blue-500" />
-                                Transaction Amount
-                            </label>
-                            <FormInput
-                                name="transactionAmount"
-                                type="number"
-                                placeholder="Enter amount (optional)"
-                                value={formData.transactionAmount}
-                                onChange={handleInputChange}
-                                className="w-full"
-                            />
-                        </div>
+                        {CATEGORIES_WITH_AMOUNT.includes(formData.category) && (
+                            <div className="space-y-2 animate-fade-in">
+                                <label className="flex items-center text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    <FontAwesomeIcon icon={faIndianRupeeSign} className="mr-2 text-blue-500" />
+                                    Transaction Amount <span className="text-red-500 ml-1">*</span>
+                                </label>
+                                <FormInput
+                                    name="transactionAmount"
+                                    type="number"
+                                    placeholder="Enter amount"
+                                    value={formData.transactionAmount}
+                                    onChange={handleInputChange}
+                                    required={true}
+                                    className="w-full"
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-2">

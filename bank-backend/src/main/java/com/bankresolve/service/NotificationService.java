@@ -16,7 +16,19 @@ import java.util.List;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final com.bankresolve.repository.UserRepository userRepository;
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+
+    @Transactional
+    public void notifyBankRole(Long bankId, com.bankresolve.entity.enums.Role role, String message, String type, Long relatedEntityId) {
+        log.info("Broadcasting notification to bank ID: {}, role: {}", bankId, role);
+        System.out.println("BankId: " + bankId + ", Role: " + role);
+        List<User> users = userRepository.findByBankIdAndRole(bankId, role);
+        System.out.println("Users found: " + users.size());
+        for (User user : users) {
+            notifyUser(user, message, type, relatedEntityId);
+        }
+    }
 
     @Transactional
     public void notifyUser(User user, String message, String type, Long relatedEntityId) {
@@ -34,6 +46,7 @@ public class NotificationService {
         
         // Push real-time event via WebSocket
         String destination = "/topic/notifications/" + user.getId();
+        System.out.println("Sending notification to user: " + user.getId() + " at destination: " + destination);
         messagingTemplate.convertAndSend(destination, saved);
         log.info("WebSocket: Sent notification to {}", destination);
     }
@@ -54,5 +67,12 @@ public class NotificationService {
             n.setIsRead(true);
             notificationRepository.save(n);
         });
+    }
+
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        List<Notification> unread = notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
+        unread.forEach(n -> n.setIsRead(true));
+        notificationRepository.saveAll(unread);
     }
 }
