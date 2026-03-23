@@ -41,10 +41,7 @@ public class AuthServiceImpl implements AuthService {
         // Guard: duplicate phone (mobile number)
         if (request.getMobileNumber() != null && !request.getMobileNumber().isBlank()
                 && userRepository.existsByPhone(request.getMobileNumber())) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.BAD_REQUEST,
-                    "Mobile number already registered"
-            );
+            throw new IllegalArgumentException("Mobile number already registered");
         }
 
         // Resolve target role (default CUSTOMER for backward compatibility)

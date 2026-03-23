@@ -24,14 +24,17 @@ export default function RootShell() {
         <>
             <RouterProvider router={appRouter} />
             <ToastContainer
-                position="top-center"
-                autoClose={3000}
+                position="top-right"
+                autoClose={4000}
                 hideProgressBar={false}
-                newestOnTop={false}
+                newestOnTop={true} 
                 draggable
                 pauseOnHover
                 theme={isDark ? "dark" : "light"}
                 transition={Bounce}
+                // Phase 8: Prevent overlap with sticky header (h-16 = 64px)
+                style={{ marginTop: "70px" }}
+                limit={3}
             />
         </>
     );

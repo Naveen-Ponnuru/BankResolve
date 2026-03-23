@@ -7,28 +7,50 @@ import {
     faExclamationTriangle,
     faList,
     faFilter,
-    faDownload
+    faDownload,
+    faStar,
+    faCommentAlt
 } from '@fortawesome/free-solid-svg-icons';
+import { faStar as faStarReg } from '@fortawesome/free-regular-svg-icons';
 import { toast } from 'react-toastify';
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    AreaChart,
+    Area
+} from 'recharts';
 import grievanceService from '../services/grievanceService';
 
 
 
 const DashboardOverview = () => {
     const { user } = useSelector((state) => state.auth);
-    const [metrics, setMetrics] = useState({ total: 0, pending: 0, resolved: 0, highRisk: 0 });
+    const [metrics, setMetrics] = useState({ total: 0, pending: 0, resolved: 0, highRisk: 0, averageResolutionTime: 0 });
     const [grievances, setGrievances] = useState([]);
+    const [trendData, setTrendData] = useState([]);
+    const [feedbacks, setFeedbacks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({ status: '', priority: '' });
     const [isProcessing, setIsProcessing] = useState(false);
 
     const fetchInitialData = React.useCallback(async () => {
         try {
-            const metricsRes = await grievanceService.getDashboardSummary();
+            const [metricsRes, trendRes, feedbackRes] = await Promise.all([
+                grievanceService.getDashboardSummary(),
+                grievanceService.getMonthlyTrend(),
+                user?.role !== 'CUSTOMER' ? grievanceService.getRecentFeedback() : Promise.resolve([])
+            ]);
             setMetrics(metricsRes);
+            setTrendData(trendRes);
+            setFeedbacks(feedbackRes);
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
-            toast.error("Failed to load dashboard metrics");
+            // toast.error("Failed to load dashboard metrics");
         }
     }, []);
 
@@ -144,7 +166,14 @@ const DashboardOverview = () => {
                 {[
                     { label: 'Total', value: metrics.total, icon: faList, color: 'blue' },
                     { label: 'Pending', value: metrics.pending, icon: faExclamationTriangle, color: 'yellow' },
-                    { label: 'High Risk', value: metrics.highRisk, icon: faArrowRight, color: 'red' },
+                    user?.role === 'CUSTOMER' 
+                        ? { 
+                            label: 'Avg Resolution', 
+                            value: `${metrics.averageResolutionTime?.toFixed(1) || 0}h`, 
+                            icon: faArrowRight, 
+                            color: 'purple' 
+                          }
+                        : { label: 'High Risk', value: metrics.highRisk, icon: faArrowRight, color: 'red' },
                     { label: 'Resolved', value: metrics.resolved, icon: faCheckCircle, color: 'green' },
                 ].map((card) => (
                     <div key={card.label} className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 flex items-center space-x-4 border border-gray-100 dark:border-gray-700">
@@ -160,6 +189,55 @@ const DashboardOverview = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* 2. Volume Trend Chart */}
+                <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-bold dark:text-white">Grievance Volume Trend</h3>
+                        <span className="text-xs text-gray-500 font-medium px-2 py-1 bg-gray-50 dark:bg-gray-700 rounded-lg">Last 6 Months</span>
+                    </div>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={trendData}>
+                                <defs>
+                                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
+                                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                <XAxis 
+                                    dataKey="month" 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{fill: '#9ca3af', fontSize: 12}}
+                                    dy={10}
+                                />
+                                <YAxis 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{fill: '#9ca3af', fontSize: 12}}
+                                />
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        borderRadius: '12px', 
+                                        border: 'none', 
+                                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                                        backgroundColor: '#fff'
+                                    }}
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="count" 
+                                    stroke="#2563eb" 
+                                    strokeWidth={3}
+                                    fillOpacity={1} 
+                                    fill="url(#colorCount)" 
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
 
                 {/* 3. Filters Section */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-100 dark:border-gray-700">
@@ -206,6 +284,71 @@ const DashboardOverview = () => {
                     </div>
                 </div>
             </div>
+
+            {/* 4. Recent Feedback Section (Non-Customers) */}
+            {user?.role !== 'CUSTOMER' && (
+                <div className="mt-8 mb-8 bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center space-x-2">
+                            <FontAwesomeIcon icon={faStar} className="text-yellow-400" />
+                            <h3 className="text-lg font-bold dark:text-white">Recent Customer Feedback</h3>
+                        </div>
+                        <button 
+                            onClick={fetchInitialData}
+                            className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
+                        >
+                            <span>Refresh</span>
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {feedbacks.length === 0 ? (
+                            <div className="col-span-full text-center py-12 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-600">
+                                <FontAwesomeIcon icon={faCommentAlt} className="text-4xl mb-3 opacity-20" />
+                                <p className="font-medium text-lg italic">"No feedback received yet"</p>
+                                <p className="text-sm opacity-60">Feedback appears here once grievances are resolved and rated.</p>
+                            </div>
+                        ) : (
+                            feedbacks.slice(0, 6).map((fb) => (
+                                <div key={fb.id} className="group p-5 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 hover:shadow-md transition-all duration-300">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                                                {fb.grievanceNumber}
+                                            </span>
+                                            <span className="text-xs font-semibold dark:text-white line-clamp-1">{fb.title}</span>
+                                        </div>
+                                        <div className="flex text-yellow-400 text-xs">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <FontAwesomeIcon 
+                                                    key={star} 
+                                                    icon={star <= fb.feedbackRating ? faStar : faStarReg} 
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="relative">
+                                        <div className="absolute -left-2 top-0 text-gray-200 dark:text-gray-600 text-2xl font-serif">"</div>
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 italic pl-2 mb-4 line-clamp-3 min-h-[3rem]">
+                                            {fb.feedbackComment || 'No comment provided'}
+                                        </p>
+                                    </div>
+                                    <div className="pt-4 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center text-[11px]">
+                                        <div className="flex items-center space-x-2">
+                                            <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 font-bold">
+                                                {fb.customerName?.charAt(0)}
+                                            </div>
+                                            <span className="font-semibold text-gray-900 dark:text-gray-200">{fb.customerName}</span>
+                                        </div>
+                                        <span className="text-gray-500 dark:text-gray-400">
+                                            {fb.resolvedAt ? new Date(fb.resolvedAt).toLocaleDateString() : 'N/A'}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* 4. Table Section */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border border-gray-100 dark:border-gray-700">

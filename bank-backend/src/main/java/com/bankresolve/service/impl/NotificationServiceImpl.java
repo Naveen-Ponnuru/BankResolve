@@ -29,6 +29,10 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @Transactional
     public void notifyUser(User user, String message, String type, Long referenceId) {
+        if (user == null) {
+            log.warn("notifyUser called with null user — skipping notification: {}", message);
+            return;
+        }
         Notification notification = Notification.builder()
                 .user(user)
                 .message(message)
@@ -39,17 +43,32 @@ public class NotificationServiceImpl implements NotificationService {
         
         Notification saved = notificationRepository.save(notification);
         
-        // Broadcast over STOMP to the specific user's topic
-        messagingTemplate.convertAndSend("/topic/notifications/" + user.getId(), mapToDto(saved));
-        log.info("Notification sent to user {}: {}", user.getId(), message);
+        // Phase 7: Push real-time over STOMP using the synced path structure
+        String destination = "/topic/notifications/" + user.getId();
+        log.info("WebSocket: Publishing to {} | Message: {}", destination, message);
+        
+        try {
+            messagingTemplate.convertAndSend(destination, mapToDto(saved));
+        } catch (Exception e) {
+            log.error("WebSocket: Failed to publish notification to {}", destination, e);
+        }
     }
 
     @Override
     @Transactional
     public void notifyBankRole(Long bankId, Role role, String message, String type, Long referenceId) {
+        if (bankId == null || role == null) {
+            log.warn("notifyBankRole called with null bankId={} or role={} — skipping.", bankId, role);
+            return;
+        }
         List<User> users = userRepository.findByBankIdAndRole(bankId, role);
+        if (users.isEmpty()) {
+            log.warn("notifyBankRole: No {} users found for bankId={}. Notification NOT delivered.", role, bankId);
+            return;
+        }
+        log.info("notifyBankRole: Delivering '{}' to {} {} user(s) in bank {}", message, users.size(), role, bankId);
         for (User user : users) {
-             notifyUser(user, message, type, referenceId);
+            notifyUser(user, message, type, referenceId);
         }
     }
 

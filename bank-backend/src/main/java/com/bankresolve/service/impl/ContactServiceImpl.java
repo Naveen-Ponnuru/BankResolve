@@ -38,7 +38,7 @@ public class ContactServiceImpl implements ContactService {
                 Long bankId = jwtService.extractBankId(token);
                 if (bankId != null) {
                     Bank bank = bankRepository.findById(bankId)
-                            .orElseThrow(() -> new RuntimeException("Bank not found"));
+                            .orElseThrow(() -> new ResourceNotFoundException("Bank", "id", bankId));
                     contact.setBank(bank);
                 }
             } catch (Exception e) {
@@ -64,7 +64,7 @@ public class ContactServiceImpl implements ContactService {
                         .collect(Collectors.toList());
             }
         }
-        throw new RuntimeException("Unauthorized or missing bank context");
+        throw new org.springframework.security.access.AccessDeniedException("Unauthorized: missing bank context");
     }
 
     @Override

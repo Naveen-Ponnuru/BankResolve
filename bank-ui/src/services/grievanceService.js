@@ -57,6 +57,32 @@ const grievanceService = {
     },
 
     /**
+     * GET /api/grievances/monthly-trend - Chart data
+     */
+    getMonthlyTrend: async () => {
+        try {
+            const response = await apiClient.get("/grievances/monthly-trend");
+            return response.data;
+        } catch (error) {
+            console.error("API ERROR (getMonthlyTrend):", error.response || error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * GET /api/grievances/feedback - Recent customer feedback
+     */
+    getRecentFeedback: async () => {
+        try {
+            const response = await apiClient.get("/grievances/feedback");
+            return response.data;
+        } catch (error) {
+            console.error("API ERROR (getRecentFeedback):", error.response || error.message);
+            throw error;
+        }
+    },
+
+    /**
      * PUT /api/grievances/{id}/forward - Escalation to manager
      */
     forwardGrievance: async (id) => {

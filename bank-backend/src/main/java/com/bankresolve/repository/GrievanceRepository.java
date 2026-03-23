@@ -88,6 +88,14 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
            "FROM Grievance g WHERE g.bank.id = :bankId AND g.status = 'RESOLVED'")
     Double getAverageResolutionTimeByBankId(@Param("bankId") Long bankId);
 
+    @Query("SELECT COALESCE(AVG(TIMESTAMPDIFF(HOUR, g.createdAt, g.resolvedAt)), 0.0) " +
+           "FROM Grievance g WHERE g.customer.id = :customerId AND g.status = 'RESOLVED'")
+    Double getAverageResolutionTimeByCustomerId(@Param("customerId") Long customerId);
+
+    @Query("SELECT COALESCE(AVG(TIMESTAMPDIFF(HOUR, g.createdAt, g.resolvedAt)), 0.0) " +
+           "FROM Grievance g WHERE g.status = 'RESOLVED'")
+    Double getAverageResolutionTimeGlobal();
+
     @Query("SELECT COUNT(g) FROM Grievance g WHERE g.assignedStaff.id = :staffId AND g.status IN :statuses")
     long countByStaffAndStatuses(@Param("staffId") Long staffId,
                                  @Param("statuses") List<GrievanceStatus> statuses);
@@ -144,4 +152,11 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
                    "GROUP BY month, YEAR(created_at), MONTH(created_at) " +
                    "ORDER BY YEAR(created_at) ASC, MONTH(created_at) ASC", nativeQuery = true)
     List<Object[]> getCustomerMonthlyTrend(@Param("customerId") Long customerId);
+
+    // ─── Feedback Queries ────────────────────────────────────────────────────
+    @Query("SELECT g FROM Grievance g WHERE g.bank.id = :bankId AND g.feedbackRating IS NOT NULL ORDER BY g.resolvedAt DESC")
+    List<Grievance> findRecentFeedbackByBankId(@Param("bankId") Long bankId);
+
+    @Query("SELECT g FROM Grievance g WHERE g.feedbackRating IS NOT NULL ORDER BY g.resolvedAt DESC")
+    List<Grievance> findRecentFeedbackGlobal();
 }

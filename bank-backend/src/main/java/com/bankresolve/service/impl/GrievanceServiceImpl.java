@@ -133,13 +133,16 @@ public class GrievanceServiceImpl implements GrievanceService {
 
         // Notify relevant bank users via team broadcasting
         Long bankId = saved.getBank().getId();
+
+        // STAFF always gets notified for every new grievance (so they can assign/review)
+        notificationService.notifyBankRole(bankId, Role.STAFF,
+                "New grievance: " + saved.getTitle(),
+                "GRIEVANCE_CREATED", saved.getId());
+
+        // MANAGER additionally gets notified for HIGH priority grievances
         if (saved.getPriority() == Priority.HIGH) {
             notificationService.notifyBankRole(bankId, Role.MANAGER,
                     "High priority grievance: " + saved.getTitle(),
-                    "GRIEVANCE_CREATED", saved.getId());
-        } else {
-            notificationService.notifyBankRole(bankId, Role.STAFF,
-                    "New grievance: " + saved.getTitle(),
                     "GRIEVANCE_CREATED", saved.getId());
         }
 
@@ -256,6 +259,7 @@ public class GrievanceServiceImpl implements GrievanceService {
         Grievance grievance = grievanceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grievance", "id", id));
 
+        // ── Authorization: only STAFF can escalate ────────────────────────────
         if (staff.getRole() != Role.STAFF) {
             throw new AccessDeniedException("Only staff members can escalate grievances.");
         }
@@ -264,21 +268,39 @@ public class GrievanceServiceImpl implements GrievanceService {
             throw new AccessDeniedException("Cannot escalate grievance outside your bank.");
         }
 
-        List<User> managers = userRepository.findByBankIdAndRole(bankId, Role.MANAGER);
-        if (managers.isEmpty()) {
-            throw new IllegalStateException("No managers available for bank ID: " + bankId);
+        // ── Guard: prevent double-escalation ─────────────────────────────────
+        if (grievance.getStatus() == GrievanceStatus.ESCALATED) {
+            throw new IllegalStateException("Grievance is already escalated to a manager.");
+        }
+        if (grievance.getStatus() == GrievanceStatus.RESOLVED
+                || grievance.getStatus() == GrievanceStatus.WITHDRAWN) {
+            throw new IllegalStateException("Cannot escalate a " + grievance.getStatus() + " grievance.");
         }
 
+        // ── Fetch managers ────────────────────────────────────────────────────
+        List<User> managers = userRepository.findByBankIdAndRole(bankId, Role.MANAGER);
+        if (managers.isEmpty()) {
+            throw new IllegalStateException(
+                "No manager is available in your bank to handle this escalation. " +
+                "Please contact the admin.");
+        }
+
+        // ── Update status & assign ────────────────────────────────────────────
         grievance.setStatus(GrievanceStatus.ESCALATED);
         grievance.setAssignedManager(managers.get(0));
         Grievance saved = grievanceRepository.save(grievance);
-        addHistoryRecord(saved, GrievanceStatus.ESCALATED, staffEmail, "Escalated to Manager");
+        addHistoryRecord(saved, GrievanceStatus.ESCALATED, staffEmail, "Escalated to Manager by " + staffEmail);
 
-        if (saved.getBank() != null) {
-            notificationService.notifyBankRole(saved.getBank().getId(), Role.MANAGER,
-                    "Grievance forwarded: " + saved.getTitle(),
-                    "GRIEVANCE_ESCALATED", saved.getId());
-        }
+        // ── Notify all MANAGERs in the bank (real-time WebSocket) ─────────────
+        notificationService.notifyBankRole(saved.getBank().getId(), Role.MANAGER,
+                "Grievance forwarded: " + saved.getTitle(),
+                "GRIEVANCE_ESCALATED", saved.getId());
+
+        // ── Notify the forwarding STAFF that action succeeded ─────────────────
+        notificationService.notifyUser(staff,
+                "You escalated grievance '" + saved.getTitle() + "' to the manager.",
+                "GRIEVANCE_ESCALATED", saved.getId());
+
         return mapToDto(saved);
     }
 
@@ -381,7 +403,7 @@ public class GrievanceServiceImpl implements GrievanceService {
         Role role = user.getRole();
 
         long total, pending, resolved, highRisk;
-
+        double avgResTime;
         if (role == Role.ADMIN) {
             total   = grievanceRepository.count();
             pending = grievanceRepository.countByStatus(GrievanceStatus.FILED)
@@ -389,12 +411,14 @@ public class GrievanceServiceImpl implements GrievanceService {
                     + grievanceRepository.countByStatus(GrievanceStatus.IN_PROGRESS);
             resolved = grievanceRepository.countByStatus(GrievanceStatus.RESOLVED);
             highRisk = grievanceRepository.findByPriority(Priority.HIGH).size();
+            avgResTime = grievanceRepository.getAverageResolutionTimeGlobal();
         } else if (role == Role.CUSTOMER) {
             total    = grievanceRepository.countByCustomerId(user.getId());
             pending  = grievanceRepository.countByCustomerIdAndStatuses(user.getId(),
                         List.of(GrievanceStatus.FILED, GrievanceStatus.ACCEPTED, GrievanceStatus.IN_PROGRESS));
             resolved = grievanceRepository.countByCustomerIdAndStatus(user.getId(), GrievanceStatus.RESOLVED);
             highRisk = 0;
+            avgResTime = grievanceRepository.getAverageResolutionTimeByCustomerId(user.getId());
         } else {
             Long bankId = requireBankId(user, role.name());
             total    = grievanceRepository.countByBankId(bankId);
@@ -402,6 +426,7 @@ public class GrievanceServiceImpl implements GrievanceService {
                         List.of(GrievanceStatus.FILED, GrievanceStatus.ACCEPTED, GrievanceStatus.IN_PROGRESS));
             resolved = grievanceRepository.countByBankIdAndStatus(bankId, GrievanceStatus.RESOLVED);
             highRisk = grievanceRepository.findByBankIdAndPriority(bankId, Priority.HIGH).size();
+            avgResTime = grievanceRepository.getAverageResolutionTimeByBankId(bankId);
         }
 
         return GrievanceSummaryDto.builder()
@@ -409,6 +434,7 @@ public class GrievanceServiceImpl implements GrievanceService {
                 .pending(pending)
                 .resolved(resolved)
                 .highRisk(highRisk)
+                .averageResolutionTime(avgResTime)
                 .build();
     }
 
@@ -460,15 +486,55 @@ public class GrievanceServiceImpl implements GrievanceService {
         grievance.setFeedbackComment(feedback.getComment());
         Grievance saved = grievanceRepository.save(grievance);
 
-        // Notify the specific resolver about the feedback (Targeted Enterprise Notification)
+        // ── Build a readable feedback message snippet ─────────────────────────
+        int rating = feedback.getRating() != null ? feedback.getRating() : 0;
+        String ratingStars = "★".repeat(rating) + "☆".repeat(5 - rating);
+        String commentPreview = feedback.getComment() != null && feedback.getComment().length() > 80
+                ? feedback.getComment().substring(0, 80) + "…"
+                : (feedback.getComment() != null ? feedback.getComment() : "No comment");
+        String feedbackSummary = "Feedback on " + saved.getGrievanceNumber()
+                + " — " + ratingStars
+                + " | \"" + commentPreview + "\"";
+
+        // ── Notify the resolver (staff or manager who closed the grievance) ───
         User resolver = saved.getResolvedBy();
         if (resolver != null) {
             notificationService.notifyUser(resolver,
-                    "New feedback received for your resolution of grievance " + saved.getGrievanceNumber() + ": " + feedback.getRating() + " stars",
+                    "Customer rated your resolution: " + feedbackSummary,
                     "GRIEVANCE_FEEDBACK", saved.getId());
         }
 
+        // ── Notify ALL MANAGERS in the bank (Enterprise Requirement) ──────────
+        notificationService.notifyBankRole(saved.getBank().getId(), Role.MANAGER,
+                "New feedback received: " + feedbackSummary,
+                "GRIEVANCE_FEEDBACK", saved.getId());
+
+        // ── Notify ALL STAFF in the bank (Team Awareness) ─────────────────────
+        notificationService.notifyBankRole(saved.getBank().getId(), Role.STAFF,
+                "Customer feedback received on " + saved.getGrievanceNumber() + " — " + ratingStars,
+                "GRIEVANCE_FEEDBACK", saved.getId());
+
         return mapToDto(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<GrievanceResponseDto> getRecentFeedback(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        Role role = user.getRole();
+
+        List<Grievance> feedbackGrievances;
+        if (role == Role.ADMIN) {
+            feedbackGrievances = grievanceRepository.findRecentFeedbackGlobal();
+        } else {
+            Long bankId = requireBankId(user, role.name());
+            feedbackGrievances = grievanceRepository.findRecentFeedbackByBankId(bankId);
+        }
+
+        return feedbackGrievances.stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     // ─── History ──────────────────────────────────────────────────────────────

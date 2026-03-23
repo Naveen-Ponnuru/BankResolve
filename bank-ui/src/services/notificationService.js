@@ -39,33 +39,55 @@ const notificationService = {
      * WebSocket Subscription (STOMP over SockJS)
      */
     subscribe: (userId, onMessage) => {
-        const socket = new SockJS("http://localhost:8080/ws");
+        if (!userId) {
+            console.warn("WebSocket: No userId provided for subscription.");
+            return { disconnect: () => {} };
+        }
+
+        // Phase 7: Fixed Dynamic URL derivation (Fallback to localhost if needed)
+        const baseUrl = apiClient.defaults.baseURL || "http://localhost:8080/api";
+        const wsHost = baseUrl.replace("/api", "");
+        const wsUrl = `${wsHost}/ws`;
+        
+        console.log(`WebSocket: Attempting connection to ${wsUrl} for user ${userId}`);
+        
+        const socket = new SockJS(wsUrl);
         const stompClient = Stomp.over(socket);
         let isActive = true;
 
-        // Turn off debug logging in production
-        stompClient.debug = null;
+        stompClient.debug = (str) => {
+            // Only log if it's an error or important handshake
+            if (str.includes("ERROR") || str.includes("CONNECTED")) {
+                console.log("WebSocket Debug:", str);
+            }
+        };
 
         stompClient.connect({}, () => {
             if (!isActive) {
                 stompClient.disconnect();
                 return;
             }
+            // Phase 7: Strict Path Sync - /topic/notifications/{id}
             const topic = `/topic/notifications/${userId}`;
             stompClient.subscribe(topic, (message) => {
-                console.log(`DEBUG: Notification received on WS for topic ${topic}:`, message.body);
-                if (message.body && isActive) {
-                    onMessage(JSON.parse(message.body));
+                try {
+                    console.log(`WebSocket: Payload received on ${topic}`);
+                    if (message.body && isActive) {
+                        onMessage(JSON.parse(message.body));
+                    }
+                } catch (e) {
+                    console.error("WebSocket: Failed to parse message body", e);
                 }
             });
-            console.log(`WebSocket: Subscribed to ${topic}`);
+            console.log(`WebSocket: Successfully subscribed to ${topic}`);
         }, (error) => {
-            console.error("WebSocket Connection Error:", error);
+            console.error("WebSocket: Connection failed or interrupted:", error);
         });
 
         return {
             disconnect: () => {
                 isActive = false;
+                console.log(`WebSocket: Disconnecting from ${wsUrl}`);
                 if (stompClient.connected) {
                     stompClient.disconnect();
                 } else {

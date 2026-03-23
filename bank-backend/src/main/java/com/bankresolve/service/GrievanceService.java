@@ -19,6 +19,7 @@ public interface GrievanceService {
     List<MonthlyTrendDto> getMonthlyTrend(String email);
     GrievanceResponseDto updateStatus(Long id, GrievanceStatus newStatus, String userEmail);
     GrievanceResponseDto submitFeedback(Long id, GrievanceFeedbackDto feedback, String email);
+    List<GrievanceResponseDto> getRecentFeedback(String email);
     List<com.bankresolve.dto.GrievanceHistoryDto> getGrievanceHistory(Long id, String email);
     GrievanceResponseDto withdrawGrievance(Long id, String customerEmail);
 }

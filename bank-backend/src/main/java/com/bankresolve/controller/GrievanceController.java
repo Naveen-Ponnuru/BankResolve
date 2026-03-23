@@ -118,6 +118,13 @@ public class GrievanceController {
         return ResponseEntity.ok(grievanceService.updateStatus(id, request.getStatus(), principal.getName()));
     }
 
+    @GetMapping("/feedback")
+    @PreAuthorize("hasAnyRole('STAFF', 'MANAGER', 'ADMIN')")
+    @Operation(summary = "Get recent customer feedback", description = "Returns a list of grievances with ratings and comments, filtered by bank.")
+    public ResponseEntity<List<GrievanceResponseDto>> getRecentFeedback(Principal principal) {
+        return ResponseEntity.ok(grievanceService.getRecentFeedback(principal.getName()));
+    }
+
     @GetMapping("/customer")
     @PreAuthorize("hasRole('CUSTOMER')")
     @Operation(summary = "Get current customer's grievances (Phase 2)", 
