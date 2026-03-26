@@ -6,6 +6,11 @@ spring:
   application:
     name: bank-backend
 
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
+
   # ─── Database ────────────────────────────────────────────────────────────────
   datasource:
     url: jdbc:mysql://localhost:3307/bankresolve?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true

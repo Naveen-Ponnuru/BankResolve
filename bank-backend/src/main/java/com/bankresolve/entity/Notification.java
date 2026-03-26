@@ -7,7 +7,11 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.Instant;
 
 @Entity
-@Table(name = "notifications")
+@Table(name = "notifications", indexes = {
+    @Index(name = "idx_user_read", columnList = "user_id, is_read")
+}, uniqueConstraints = {
+    @UniqueConstraint(name = "uk_user_reference_type", columnNames = {"user_id", "reference_id", "type"})
+})
 @Getter
 @Setter
 @NoArgsConstructor

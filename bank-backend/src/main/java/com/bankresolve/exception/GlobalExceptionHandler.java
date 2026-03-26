@@ -14,16 +14,26 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import jakarta.validation.ConstraintViolationException;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import com.bankresolve.util.AuditLogger;
+import com.bankresolve.security.UserPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Enterprise Exception Handler — ensures consistent, meaningful JSON responses.
  * Prevents system leakage by masking internal stack traces in production.
  */
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final AuditLogger auditLogger;
 
     // ─── Resource Not Found ──────────────────────────────────────────────────
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -39,8 +49,27 @@ public class GlobalExceptionHandler {
 
     // ─── Access Denied ───────────────────────────────────────────────────────
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
-        return buildResponse(HttpStatus.FORBIDDEN, "Access denied: unsufficient permissions", null);
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = null;
+        Long bankId = null;
+
+        if (auth != null && auth.getPrincipal() instanceof UserPrincipal) {
+            UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+            userId = principal.getId();
+            bankId = principal.getBankId();
+        }
+
+        auditLogger.logSecurityViolation(
+            "ACCESS_DENIED",
+            userId,
+            bankId,
+            request.getMethod(),
+            request.getRequestURI(),
+            ex.getMessage()
+        );
+
+        return buildResponse(HttpStatus.FORBIDDEN, "Access denied: insufficient permissions", null);
     }
 
     // ─── Auth Failures ───────────────────────────────────────────────────────

@@ -42,11 +42,12 @@ public class JwtService {
      */
     public String generateToken(Long userId, String email, String name,
                                 String roles, Long bankId) {
+        String normalizedEmail = email != null ? email.trim().toLowerCase() : null;
         return Jwts.builder()
                 .issuer("BankResolve")
-                .subject(email)
+                .subject(normalizedEmail)
                 .claim("userId", userId)
-                .claim("email", email)
+                .claim("email", normalizedEmail)
                 .claim("name", name)
                 .claim("roles", roles)
                 .claim("bankId", bankId)
@@ -81,7 +82,8 @@ public class JwtService {
     // ─── Claim Extraction ─────────────────────────────────────────────────────
 
     public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
+        String email = extractClaim(token, Claims::getSubject);
+        return email != null ? email.trim().toLowerCase() : null;
     }
 
     public Long extractUserId(String token) {

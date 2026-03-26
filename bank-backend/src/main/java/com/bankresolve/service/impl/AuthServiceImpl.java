@@ -33,9 +33,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponseDto register(RegisterRequestDto request) {
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
         // Guard: duplicate email
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already in use: " + request.getEmail());
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new IllegalArgumentException("Email already in use: " + normalizedEmail);
         }
 
         // Guard: duplicate phone (mobile number)
@@ -44,8 +45,9 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Mobile number already registered");
         }
 
-        // Resolve target role (default CUSTOMER for backward compatibility)
-        Role resolvedRole = request.getRole() != null ? request.getRole() : Role.CUSTOMER;
+        // Resolve target role: PUBLIC REGISTRATION IS ALWAYS CUSTOMER
+        // STAFF/MANAGER accounts must be created by an ADMIN (Enterprise Security)
+        Role resolvedRole = Role.CUSTOMER;
 
         // Role-aware validation for bankId
         Long bankId = request.getBankId();
@@ -78,7 +80,7 @@ public class AuthServiceImpl implements AuthService {
         // Build and persist the new user with the resolved role
         User user = User.builder()
                 .fullName(request.getName())
-                .email(request.getEmail())
+                .email(normalizedEmail)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getMobileNumber())
                 .role(resolvedRole)

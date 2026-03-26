@@ -1,5 +1,6 @@
 import React from "react";
 import { useSelector } from "react-redux";
+import { selectUser } from "../store/auth-slice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBuilding,
@@ -7,7 +8,7 @@ import {
 import DashboardOverview from "../components/DashboardOverview";
 
 const StaffDashboard = () => {
-  const user = useSelector((state) => state.auth.user);
+  const user = useSelector(selectUser);
   const selectedBank = useSelector((state) => state.bank?.selectedBank);
 
   return (

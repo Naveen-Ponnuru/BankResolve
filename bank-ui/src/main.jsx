@@ -46,6 +46,7 @@ const Feedback = lazy(() => import("./customer/Feedback.jsx"));
 const StaffDashboard = lazy(() => import("./staff/StaffDashboard.jsx"));
 const ManagerDashboard = lazy(() => import("./manager/ManagerDashboard.jsx"));
 const AdminDashboard = lazy(() => import("./admin/AdminDashboard.jsx"));
+const GrievanceDetail = lazy(() => import("./pages/GrievanceDetail.jsx"));
 /* ====================
    ROUTES
  =====================*/
@@ -70,6 +71,16 @@ const routeDefinitions = createRoutesFromElements(
       {/*  PROTECTED DASHBOARDS */}
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
+          {/* Shared Grievance Detail Route for ALL Roles */}
+          <Route
+            path="dashboard/grievance/:id"
+            element={
+              <Suspense fallback={<SkeletonLoader count={4} />}>
+                <GrievanceDetail />
+              </Suspense>
+            }
+          />
+
           {/* 👤 CUSTOMER */}
           <Route
             element={<RoleProtectedRoute allowedRoles={[ROLES.CUSTOMER]} />}

@@ -9,7 +9,10 @@ import com.bankresolve.repository.UserRepository;
 import com.bankresolve.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +28,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SimpUserRegistry simpUserRegistry;
 
     @Override
     @Transactional
@@ -33,6 +37,9 @@ public class NotificationServiceImpl implements NotificationService {
             log.warn("notifyUser called with null user — skipping notification: {}", message);
             return;
         }
+        // ── Deduplication: Relies on Database Unique Constraint (user_id, reference_id, type)
+        // No pre-check here to avoid race conditions and unnecessary reads.
+
         Notification notification = Notification.builder()
                 .user(user)
                 .message(message)
@@ -41,17 +48,37 @@ public class NotificationServiceImpl implements NotificationService {
                 .read(false)
                 .build();
         
-        Notification saved = notificationRepository.save(notification);
-        
-        // Phase 7: Push real-time over STOMP using the synced path structure
-        String destination = "/topic/notifications/" + user.getId();
-        log.info("WebSocket: Publishing to {} | Message: {}", destination, message);
-        
+        Notification saved;
         try {
-            messagingTemplate.convertAndSend(destination, mapToDto(saved));
-        } catch (Exception e) {
-            log.error("WebSocket: Failed to publish notification to {}", destination, e);
+            saved = notificationRepository.saveAndFlush(notification);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.debug("Duplicate notification constraint caught for user {}, reference {}, type {}", user.getId(), referenceId, type);
+            return;
         }
+        
+        // Phase 14: Push real-time over STOMP only AFTER successful DB commit
+        final String normalizedEmail = user.getEmail().trim().toLowerCase();
+        final NotificationDto savedDto = mapToDto(saved);
+
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    // ✅ OBSERVABILITY: Check session registry as a visibility hint (NOT a delivery gatekeeper)
+                    boolean hasActiveSession = simpUserRegistry.getUser(normalizedEmail) != null;
+                    if (hasActiveSession) {
+                        log.info("WS SEND → user={} (active session detected)", normalizedEmail);
+                    } else {
+                        log.warn("WS SEND → user={} (no local session, delivery attempted)", normalizedEmail);
+                    }
+                    try {
+                        messagingTemplate.convertAndSendToUser(normalizedEmail, "/queue/notifications", savedDto);
+                    } catch (Exception e) {
+                        log.error("WebSocket: Failed to publish notification to /user/{}/queue/notifications", normalizedEmail, e);
+                    }
+                }
+            }
+        );
     }
 
     @Override
@@ -82,6 +109,18 @@ public class NotificationServiceImpl implements NotificationService {
             notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
         }
         return notifications.stream().map(this::mapToDto).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<NotificationDto> getUserNotificationsPaged(Long userId, boolean unreadOnly, Pageable pageable) {
+        Page<Notification> notifications;
+        if (unreadOnly) {
+            notifications = notificationRepository.findByUserIdAndReadFalseOrderByCreatedAtDesc(userId, pageable);
+        } else {
+            notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        }
+        return notifications.map(this::mapToDto);
     }
 
     @Override

@@ -31,6 +31,23 @@ const grievanceService = {
     },
 
     /**
+     * GET /api/grievances/paged - Paginated listing
+     */
+    getGrievancesPaged: async (page = 0, size = 10, status = null, priority = null) => {
+        try {
+            const params = { page, size };
+            if (status) params.status = status;
+            if (priority) params.priority = priority;
+            
+            const response = await apiClient.get("/grievances/paged", { params });
+            return response.data; // Returns Spring Page object { content: [], totalElements: X, ... }
+        } catch (error) {
+            console.error("API ERROR (getGrievancesPaged):", error.response || error.message);
+            throw error;
+        }
+    },
+
+    /**
      * GET /api/grievances/:id - Get single grievance by ID
      */
     getGrievanceById: async (id) => {
@@ -119,6 +136,14 @@ const grievanceService = {
      */
     getGrievanceHistory: async (id) => {
         const response = await apiClient.get(`/grievances/${id}/history`);
+        return response.data;
+    },
+
+    getPublicStats: async (bankId) => {
+        // Use a standard axios call without the auth interceptor for public endpoints
+        // since the user may not be logged in to access the auth token context correctly.
+        // Actually, our api instance handles no-token requests fine if it's not strictly required.
+        const response = await apiClient.get(`/public/stats/${bankId}`);
         return response.data;
     },
 

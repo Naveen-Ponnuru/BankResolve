@@ -14,5 +14,4 @@ public class GrievanceSummaryDto {
     private long pending;
     private long resolved;
     private long highRisk;
-    private double averageResolutionTime;
 }

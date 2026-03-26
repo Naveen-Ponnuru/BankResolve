@@ -27,4 +27,11 @@ public class Bank extends BaseEntity {
     @Size(max = 50)
     @Column(nullable = false, unique = true, length = 50)
     private String code;
+
+    @Size(max = 50)
+    @Column(length = 50)
+    private String themeColor; // e.g., "blue", "indigo", "orange"
+
+    @Size(max = 255)
+    private String tagline;
 }

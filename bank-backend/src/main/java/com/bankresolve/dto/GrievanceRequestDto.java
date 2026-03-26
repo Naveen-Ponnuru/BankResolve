@@ -25,7 +25,5 @@ public class GrievanceRequestDto {
     
     private BigDecimal transactionAmount;
 
-    private Long bankId;
-
     private Priority priority;
 }

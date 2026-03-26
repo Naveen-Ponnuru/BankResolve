@@ -1,14 +1,56 @@
 import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faPhone,
   faEnvelope,
-  faMapMarkerAlt,
+  faHeadset,
+  faCheckCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-toastify";
+import { useSelector } from "react-redux";
+import { selectBank } from "../../store/bankSlice";
+import { selectIsAuthenticated, selectUser } from "../../store/auth-slice";
 import apiClient from "../../api/apiClient";
 
+// ─── Bank-specific contact configuration ──────────────────────────────────────
+const BANK_CONTACT_CONFIG = {
+  "SBI": {
+    email: "sbi@bankresolve.com",
+    phone: "1800-11-2211",
+    supportHours: "24x7 (Toll Free)",
+    tagline: "SBI Customer Care — Always at Your Service",
+  },
+  "HDFC Bank": {
+    email: "hdfc@bankresolve.com",
+    phone: "1800-202-6161",
+    supportHours: "Mon–Sat, 8 AM – 8 PM",
+    tagline: "HDFC Bank Support — We Value Your Time",
+  },
+  "ICICI Bank": {
+    email: "icici@bankresolve.com",
+    phone: "1800-200-3344",
+    supportHours: "24x7 (Toll Free)",
+    tagline: "ICICI Bank Helpdesk — Fast, Transparent, Resolved",
+  },
+  "default": {
+    email: "support@bankresolve.com",
+    phone: "1800-123-4567",
+    supportHours: "24x7 (Toll Free)",
+    tagline: "BankResolve Support — Here to Help",
+  }
+};
+
 const Contact = () => {
+  const selectedBank = useSelector(selectBank);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const reduxUser = useSelector(selectUser);
+
+  // Strict isolation: use authenticated user's bank when logged in
+  const activeBankName = isAuthenticated && reduxUser?.bankName
+    ? reduxUser.bankName
+    : (selectedBank?.name || "BankResolve");
+
+  const contactInfo = BANK_CONTACT_CONFIG[activeBankName] || BANK_CONTACT_CONFIG["default"];
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -26,16 +68,13 @@ const Contact = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      // Map to Ecommerce ContactRequestDto format
       const payload = {
         name: formData.name,
         email: formData.email,
         mobileNumber: formData.phone,
         message: formData.subject ? `[${formData.subject}] ${formData.message}` : formData.message,
       };
-
       await apiClient.post("/contacts", payload);
       toast.success("Message sent successfully! We'll get back to you soon.");
       setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
@@ -47,286 +86,197 @@ const Contact = () => {
     }
   };
 
-  const officeLocations = [
-    {
-      city: "Mumbai",
-      address: "101, Business Park, Bandra Kurla Complex",
-      phone: "+91-22-1234-5678",
-      email: "mumbai@bankresolve.com",
-    },
-    {
-      city: "Bangalore",
-      address: "Suite 500, Tech Tower, Indranagar",
-      phone: "+91-80-1234-5678",
-      email: "bangalore@bankresolve.com",
-    },
-    {
-      city: "Delhi",
-      address: "Floor 12, Corporate Hub, Connaught Place",
-      phone: "+91-11-1234-5678",
-      email: "delhi@bankresolve.com",
-    },
-    {
-      city: "Chennai",
-      address: "Level 5, Tech Park Drive, Anna Nagar",
-      phone: "+91-44-1234-5678",
-      email: "chennai@bankresolve.com",
-    },
-  ];
-
   const faqs = [
     {
       question: "What is the typical grievance resolution time?",
-      answer:
-        "Our average resolution time is 2.5 days. However, this depends on the complexity of the grievance.",
+      answer: "Our average resolution time is 2.5 days. However, this depends on the complexity of the grievance.",
     },
     {
       question: "Is my personal information secure?",
-      answer:
-        "Yes, we use enterprise-grade encryption (ISO 27001 certified) and comply with all banking regulations.",
+      answer: "Yes, we use enterprise-grade encryption (ISO 27001 certified) and comply with all banking regulations.",
     },
     {
       question: "Can I file multiple grievances?",
-      answer:
-        "Yes, you can file multiple grievances. Each will be tracked and resolved independently.",
+      answer: "Yes, you can file multiple grievances. Each will be tracked and resolved independently.",
     },
     {
       question: "What happens after I submit a grievance?",
-      answer:
-        "You'll receive a reference number via email. You can use this to track the status anytime.",
-    },
-    {
-      question: "Do you support all banks?",
-      answer:
-        "We currently support 15+ major banks in India. Check our home page to see your bank.",
+      answer: "You'll receive a reference number via email. You can use this to track the status anytime.",
     },
     {
       question: "How can I contact customer support?",
-      answer:
-        "You can reach us via email, phone, or through this contact form. We respond within 2-4 hours.",
+      answer: "You can reach us via email, phone, or through this contact form. We respond within 2-4 hours.",
     },
   ];
 
   return (
-    <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
-      {/* ============ HEADER ============ */}
+    <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+      {/* ── Page Header ─────────────────────────────────────────────────────── */}
       <section className="bg-linear-to-r from-blue-600 to-blue-800 py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-white text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Contact Us</h1>
-          <p className="text-lg opacity-90">
-            We're here to help and answer any questions you might have
+          <div className="mb-4 inline-flex items-center space-x-2 bg-white/20 px-4 py-1.5 rounded-full">
+            <span>🏦</span>
+            <span className="text-sm font-semibold uppercase tracking-wide">{activeBankName}</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-extrabold mb-4">Contact Us</h1>
+          <p className="text-lg opacity-90 max-w-xl mx-auto">
+            {contactInfo.tagline}
           </p>
         </div>
       </section>
 
-      {/* ============ CONTACT INFO ============ */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-            <div className="p-6 rounded-lg bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700">
-              <div className="w-12 h-12 rounded-lg bg-blue-600 text-white flex items-center justify-center mb-4">
-                <FontAwesomeIcon icon={faPhone} className="text-xl" />
+      {/* ── Bank-Specific Contact Info ────────────────────────────────────── */}
+      <section className="py-14 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-800">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-center mb-10 text-gray-900 dark:text-white">
+            {activeBankName} Primary Support Contacts
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Email Card */}
+            <div className="flex items-start space-x-5 p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition">
+              <div className="w-14 h-14 flex-shrink-0 rounded-xl bg-blue-600 text-white flex items-center justify-center text-2xl">
+                <FontAwesomeIcon icon={faEnvelope} />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Call Us</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-2">
-                Available 9 AM - 9 PM EST
-              </p>
-              <a
-                href="tel:+919876543210"
-                className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
-              >
-                +91-1234-567890
-              </a>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Email Support</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Response within 2–4 hours</p>
+                <a
+                  href={`mailto:${contactInfo.email}`}
+                  className="text-blue-600 dark:text-blue-400 font-semibold hover:underline break-all"
+                >
+                  {contactInfo.email}
+                </a>
+              </div>
             </div>
 
-            <div className="p-6 rounded-lg bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
-              <div className="w-12 h-12 rounded-lg bg-green-600 text-white flex items-center justify-center mb-4">
-                <FontAwesomeIcon icon={faEnvelope} className="text-xl" />
+            {/* Phone Card */}
+            <div className="flex items-start space-x-5 p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition">
+              <div className="w-14 h-14 flex-shrink-0 rounded-xl bg-green-600 text-white flex items-center justify-center text-2xl">
+                <FontAwesomeIcon icon={faHeadset} />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Email Us</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-2">
-                Response within 2-4 hours
-              </p>
-              <a
-                href="mailto:support@bankresolve.com"
-                className="text-green-600 dark:text-green-400 font-semibold hover:underline"
-              >
-                support@bankresolve.com
-              </a>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Phone Support</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{contactInfo.supportHours}</p>
+                <a
+                  href={`tel:${contactInfo.phone}`}
+                  className="text-green-600 dark:text-green-400 font-semibold hover:underline"
+                >
+                  {contactInfo.phone}
+                </a>
+              </div>
             </div>
+          </div>
 
-            <div className="p-6 rounded-lg bg-purple-50 dark:bg-purple-900 border border-purple-200 dark:border-purple-700">
-              <div className="w-12 h-12 rounded-lg bg-purple-600 text-white flex items-center justify-center mb-4">
-                <FontAwesomeIcon icon={faMapMarkerAlt} className="text-xl" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Visit Us</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-2">
-                4 Office Locations
-              </p>
-              <p className="text-purple-600 dark:text-purple-400 font-semibold">
-                India-wide presence
-              </p>
-            </div>
+          {/* Commitment badge */}
+          <div className="mt-8 flex items-center justify-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+            <FontAwesomeIcon icon={faCheckCircle} className="text-green-500" />
+            <span>Strictly isolated to {activeBankName} customers only. No data shared across banks.</span>
           </div>
         </div>
       </section>
 
-      {/* ============ CONTACT FORM & LOCATIONS ============ */}
-      <section className="bg-gray-50 dark:bg-gray-800 py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Form */}
-          <div>
-            <h2 className="text-3xl font-bold mb-8">Send us a Message</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+      {/* ── Contact Form ────────────────────────────────────────────────────── */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2 text-center">Send a Message</h2>
+          <p className="text-center text-gray-500 dark:text-gray-400 mb-10">
+            Our {activeBankName} support team will respond promptly.
+          </p>
+          <form onSubmit={handleSubmit} className="space-y-5 bg-gray-50 dark:bg-gray-800 p-8 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-semibold mb-2">Name</label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Name</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                   placeholder="Your name"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Email
-                </label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Email</label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  placeholder="your@email.com"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  placeholder="you@example.com"
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Phone
-                </label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Phone (Optional)</label>
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  placeholder="+91-123456789"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  placeholder="+91 9876543210"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Subject
-                </label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Subject</label>
                 <input
                   type="text"
                   name="subject"
                   value={formData.subject}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                   placeholder="How can we help?"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Message
-                </label>
-                <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={handleChange}
-                  required
-                  rows="4"
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  placeholder="Tell us more..."
-                ></textarea>
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold disabled:opacity-50"
-              >
-                {loading ? "Sending..." : "Send Message"}
-              </button>
-            </form>
-          </div>
-
-          {/* Office Locations */}
-          <div>
-            <h2 className="text-3xl font-bold mb-8">Our Locations</h2>
-            <div className="space-y-4">
-              {officeLocations.map((location, idx) => (
-                <div
-                  key={idx}
-                  className="p-6 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition"
-                >
-                  <h3 className="text-lg font-semibold mb-2">
-                    {location.city}
-                  </h3>
-                  <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                    <div className="flex items-start space-x-3">
-                      <FontAwesomeIcon
-                        icon={faMapMarkerAlt}
-                        className="text-blue-600 dark:text-blue-400 mt-1"
-                      />
-                      <span>{location.address}</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                     `` <FontAwesomeIcon
-                        icon={faPhone}
-                        className="text-blue-600 dark:text-blue-400"
-                      />
-                      <a
-                        href={`tel:${location.phone}`}
-                        className="hover:text-blue-600 dark:hover:text-blue-400"
-                      >
-                        {location.phone}
-                      </a>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <FontAwesomeIcon
-                        icon={faEnvelope}
-                        className="text-blue-600 dark:text-blue-400"
-                      />
-                      <a
-                        href={`mailto:${location.email}`}
-                        className="hover:text-blue-600 dark:hover:text-blue-400"
-                      >
-                        {location.email}
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
-          </div>
+
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Message</label>
+              <textarea
+                name="message"
+                value={formData.message}
+                onChange={handleChange}
+                required
+                rows="5"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                placeholder="Describe your concern in detail..."
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition disabled:opacity-50 text-base"
+            >
+              {loading ? "Sending..." : `Send to ${activeBankName} Support`}
+            </button>
+          </form>
         </div>
       </section>
 
-      {/* ============ FAQ ============ */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
+      {/* ── FAQ ─────────────────────────────────────────────────────────────── */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-800">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl font-extrabold text-center mb-12 text-gray-900 dark:text-white">
             Frequently Asked Questions
           </h2>
-
           <div className="space-y-4">
             {faqs.map((faq, idx) => (
               <details
                 key={idx}
-                className="group p-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                className="group p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 cursor-pointer hover:shadow-sm transition"
               >
-                <summary className="flex justify-between items-center font-semibold text-lg">
+                <summary className="flex justify-between items-center font-semibold text-base text-gray-900 dark:text-white list-none">
                   {faq.question}
-                  <span className="text-blue-600 dark:text-blue-400 group-open:rotate-180 transition">
-                    ▼
-                  </span>
+                  <span className="text-blue-600 dark:text-blue-400 ml-2 group-open:rotate-180 transition-transform duration-200">▼</span>
                 </summary>
-                <p className="mt-4 text-gray-600 dark:text-gray-400">
+                <p className="mt-4 text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
                   {faq.answer}
                 </p>
               </details>
@@ -335,13 +285,13 @@ const Contact = () => {
         </div>
       </section>
 
-      {/* ============ RESPONSE TIME ============ */}
-      <section className="bg-blue-50 dark:bg-blue-900 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <h3 className="text-2xl font-bold mb-4">Our Commitment</h3>
-          <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
-            We respond to all inquiries within 2-4 business hours. For urgent
-            matters, call our support line at +91-1234-567890.
+      {/* ── Commitment Footer ─────────────────────────────────────────────── */}
+      <section className="bg-blue-600 dark:bg-blue-800 py-12 px-4">
+        <div className="max-w-3xl mx-auto text-center text-white">
+          <h3 className="text-2xl font-bold mb-3">Our Commitment to {activeBankName} Customers</h3>
+          <p className="opacity-90">
+            We respond to all {activeBankName} inquiries within 2–4 business hours.
+            For urgent matters, call us at <strong>{contactInfo.phone}</strong>.
           </p>
         </div>
       </section>

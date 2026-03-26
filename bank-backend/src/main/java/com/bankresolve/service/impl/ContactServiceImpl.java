@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.bankresolve.entity.Bank;
 import com.bankresolve.repository.BankRepository;
-import com.bankresolve.security.JwtService;
+import com.bankresolve.security.BankContextUtil;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
@@ -24,27 +24,22 @@ public class ContactServiceImpl implements ContactService {
 
     private final ContactRepository contactRepository;
     private final BankRepository bankRepository;
-    private final JwtService jwtService;
+    private final BankContextUtil bankContextUtil;
 
     @Override
     public boolean saveContact(ContactRequestDto contactRequestDto, HttpServletRequest request) {
         Contact contact = transformToEntity(contactRequestDto);
 
-        // JWT logic for Bank identification (Phase 4)
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            try {
-                Long bankId = jwtService.extractBankId(token);
-                if (bankId != null) {
-                    Bank bank = bankRepository.findById(bankId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Bank", "id", bankId));
-                    contact.setBank(bank);
-                }
-            } catch (Exception e) {
-                // If token is invalid/expired, they can still post anonymously, 
-                // but won't be mapped to a specific bank. Log it or handle as needed.
+        // Deriving bank context via BankContextUtil if authenticated
+        try {
+            Long bankId = bankContextUtil.getCurrentBankId();
+            if (bankId != null) {
+                Bank bank = bankRepository.findById(bankId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Bank", "id", bankId));
+                contact.setBank(bank);
             }
+        } catch (Exception e) {
+            // Anonymous or non-bank user; proceed without specific bank mapping
         }
 
         contactRepository.save(contact);
@@ -53,18 +48,11 @@ public class ContactServiceImpl implements ContactService {
 
     @Override
     public List<ContactResponseDto> getContactsByBank(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            Long bankId = jwtService.extractBankId(token);
-            if (bankId != null) {
-                return contactRepository.findByBankId(bankId)
-                        .stream()
-                        .map(this::mapToContactResponseDTO)
-                        .collect(Collectors.toList());
-            }
-        }
-        throw new org.springframework.security.access.AccessDeniedException("Unauthorized: missing bank context");
+        Long bankId = bankContextUtil.getCurrentBankId();
+        return contactRepository.findByBankId(bankId)
+                .stream()
+                .map(this::mapToContactResponseDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -78,6 +66,12 @@ public class ContactServiceImpl implements ContactService {
         Contact contact = contactRepository.findById(contactId).orElseThrow(
                 () -> new ResourceNotFoundException("Contact", "ContactID", contactId.toString())
         );
+        
+        // IDOR Prevention: Ensure staff can only update messages for their bank
+        if (contact.getBank() != null) {
+            bankContextUtil.validateBankAccess(contact.getBank().getId());
+        }
+        
         contact.setStatus(status);
         contactRepository.save(contact);
     }

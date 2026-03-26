@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import useTheme from "./hooks/useTheme";
 import { appRouter } from "./main";
 import { loadBanksFromApi } from "./store/bankSlice";
+import { initializeAuth } from "./store/auth-slice";
 
 /**
  * RootShell — wraps the whole app so ToastContainer can reactively
@@ -18,13 +19,15 @@ export default function RootShell() {
     useEffect(() => {
         // Hydrate dynamic bank list from backend
         dispatch(loadBanksFromApi());
+        // Explicitly unblock UI rendering after initial state hydration
+        dispatch(initializeAuth());
     }, [dispatch]);
 
     return (
         <>
             <RouterProvider router={appRouter} />
             <ToastContainer
-                position="top-right"
+                position="top-center"
                 autoClose={4000}
                 hideProgressBar={false}
                 newestOnTop={true} 
@@ -32,8 +35,8 @@ export default function RootShell() {
                 pauseOnHover
                 theme={isDark ? "dark" : "light"}
                 transition={Bounce}
-                // Phase 8: Prevent overlap with sticky header (h-16 = 64px)
-                style={{ marginTop: "70px" }}
+                // Phase 8: Standardized top-center position with navbar offset (h-16 = 64px) and high z-index
+                style={{ marginTop: "75px", zIndex: 9999 }}
                 limit={3}
             />
         </>

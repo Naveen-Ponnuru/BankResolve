@@ -1,12 +1,13 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { selectUser } from "../store/auth-slice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus, faBuilding } from "@fortawesome/free-solid-svg-icons";
 import DashboardOverview from "../components/DashboardOverview";
 
 const CustomerDashboard = () => {
-  const user = useSelector((state) => state.auth.user);
+  const user = useSelector(selectUser);
   const selectedBank = useSelector((state) => state.bank?.selectedBank);
 
   return (
@@ -19,7 +20,10 @@ const CustomerDashboard = () => {
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm flex items-center space-x-2">
             <FontAwesomeIcon icon={faBuilding} className="text-blue-500" />
-            <span>{user?.bankName || selectedBank?.name || "Bank"} — Grievance Dashboard</span>
+            <span>
+              {user?.bankName || selectedBank?.name || "Bank"} — Grievance
+              Dashboard
+            </span>
           </p>
         </div>
         <Link
@@ -44,8 +48,8 @@ const CustomerDashboard = () => {
             </h3>
             <p className="text-sm text-blue-700 dark:text-blue-300">
               Bank ID: {user?.bankId || selectedBank?.id} ·{" "}
-              {selectedBank?.branchCount?.toLocaleString() || "N/A"} Branches · RBI
-              Compliant
+              {selectedBank?.branchCount?.toLocaleString() || "N/A"} Branches ·
+              RBI Compliant
             </p>
           </div>
           <div className="hidden sm:flex items-center space-x-1 px-3 py-1 bg-green-100 dark:bg-green-900/40 rounded-full">

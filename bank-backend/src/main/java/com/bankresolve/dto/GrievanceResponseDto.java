@@ -37,6 +37,7 @@ public class GrievanceResponseDto {
     private com.bankresolve.entity.enums.Role resolvedRole;
     private Integer feedbackRating;
     private String feedbackComment;
+    private Instant feedbackAt;
     private Instant targetSla;
     private Boolean isEscalated;
     private Instant updatedAt;

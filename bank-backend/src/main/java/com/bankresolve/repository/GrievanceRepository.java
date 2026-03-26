@@ -43,6 +43,7 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
     List<Grievance> findByBankId(Long bankId);
 
     List<Grievance> findByBankIdAndStatus(Long bankId, GrievanceStatus status);
+    List<Grievance> findByBankIdAndFeedbackRatingIsNotNullOrderByResolvedAtDesc(Long bankId);
 
     long countByBankId(Long bankId);
 
@@ -54,6 +55,8 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
 
     List<Grievance> findByBankIdAndPriority(Long bankId, Priority priority);
 
+    long countByBankIdAndPriority(Long bankId, Priority priority);
+
     long countByBankIdAndStatus(Long bankId, GrievanceStatus status);
 
     // ─── By Status / Priority ─────────────────────────────────────────────────
@@ -62,12 +65,20 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
     List<Grievance> findByStatusInAndSlaDeadlineBeforeAndIsEscalatedFalse(List<GrievanceStatus> statuses, java.time.LocalDateTime now);
 
     List<Grievance> findByCustomerIdAndPriority(Long customerId, Priority priority);
+    
+    // ADMIN ONLY - must be used with role check
     List<Grievance> findByStatus(GrievanceStatus status);
 
+    // ADMIN ONLY - must be used with role check
     List<Grievance> findByPriority(Priority priority);
 
+    // ADMIN ONLY - must be used with role check
+    long countByPriority(Priority priority);
+
+    // ADMIN ONLY - must be used with role check
     long countByStatus(GrievanceStatus status);
 
+    // ADMIN ONLY - must be used with role check
     @Query("SELECT COUNT(g) FROM Grievance g WHERE g.status IN :statuses")
     long countByStatuses(@Param("statuses") List<GrievanceStatus> statuses);
 
@@ -92,6 +103,7 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
            "FROM Grievance g WHERE g.customer.id = :customerId AND g.status = 'RESOLVED'")
     Double getAverageResolutionTimeByCustomerId(@Param("customerId") Long customerId);
 
+    // ADMIN ONLY - must be used with role check
     @Query("SELECT COALESCE(AVG(TIMESTAMPDIFF(HOUR, g.createdAt, g.resolvedAt)), 0.0) " +
            "FROM Grievance g WHERE g.status = 'RESOLVED'")
     Double getAverageResolutionTimeGlobal();
@@ -135,6 +147,7 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
     List<Object[]> getManagerMonthlyTrend(@Param("bankId") Long bankId);
 
     // ─── Monthly Trends ──────────────────────────────────────────────────────
+    // ADMIN ONLY - must be used with role check
     @Query(value = "SELECT DATE_FORMAT(created_at, '%b') as month, COUNT(*) as count " +
                    "FROM grievances WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) " +
                    "GROUP BY month, YEAR(created_at), MONTH(created_at) " +
@@ -154,9 +167,12 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
     List<Object[]> getCustomerMonthlyTrend(@Param("customerId") Long customerId);
 
     // ─── Feedback Queries ────────────────────────────────────────────────────
+    List<Grievance> findTop5ByBankIdAndFeedbackRatingIsNotNullOrderByResolvedAtDesc(Long bankId);
+
     @Query("SELECT g FROM Grievance g WHERE g.bank.id = :bankId AND g.feedbackRating IS NOT NULL ORDER BY g.resolvedAt DESC")
     List<Grievance> findRecentFeedbackByBankId(@Param("bankId") Long bankId);
 
+    // ADMIN ONLY - must be used with role check
     @Query("SELECT g FROM Grievance g WHERE g.feedbackRating IS NOT NULL ORDER BY g.resolvedAt DESC")
     List<Grievance> findRecentFeedbackGlobal();
 }

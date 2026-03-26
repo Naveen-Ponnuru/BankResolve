@@ -8,6 +8,7 @@ import java.util.List;
 
 @Repository
 public interface ContactRepository extends JpaRepository<Contact, Long> {
+    // ADMIN ONLY - must be used with role check
     List<Contact> findByStatus(String status);
     List<Contact> findByBankId(Long bankId);
 }

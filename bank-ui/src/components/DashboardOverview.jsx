@@ -1,75 +1,89 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faArrowRight,
     faCheckCircle,
     faExclamationTriangle,
     faList,
-    faFilter,
-    faDownload,
-    faStar,
-    faCommentAlt
+    faFilter
 } from '@fortawesome/free-solid-svg-icons';
-import { faStar as faStarReg } from '@fortawesome/free-regular-svg-icons';
+
 import { toast } from 'react-toastify';
-import {
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    AreaChart,
-    Area
-} from 'recharts';
+import { selectUser } from '../store/auth-slice';
 import grievanceService from '../services/grievanceService';
+import { getThemeClasses } from '../utils/themeUtils';
 
 
 
 const DashboardOverview = () => {
-    const { user } = useSelector((state) => state.auth);
-    const [metrics, setMetrics] = useState({ total: 0, pending: 0, resolved: 0, highRisk: 0, averageResolutionTime: 0 });
+    const user = useSelector(selectUser);
+    const [metrics, setMetrics] = useState({
+        total: 0,
+        pending: 0,
+        resolved: 0,
+        highRisk: 0
+    });
+    const [isMetricsLoading, setIsMetricsLoading] = useState(true);
     const [grievances, setGrievances] = useState([]);
-    const [trendData, setTrendData] = useState([]);
-    const [feedbacks, setFeedbacks] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filters, setFilters] = useState({ status: '', priority: '' });
     const [isProcessing, setIsProcessing] = useState(false);
+    const [filters, setFilters] = useState({ status: '', priority: '' });
+    
+    // Pagination state
+    const [page, setPage] = useState(0);
+    const [pageSize] = useState(10);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalElements, setTotalElements] = useState(0);
+
+
 
     const fetchInitialData = React.useCallback(async () => {
+        setIsMetricsLoading(true);
         try {
-            const [metricsRes, trendRes, feedbackRes] = await Promise.all([
-                grievanceService.getDashboardSummary(),
-                grievanceService.getMonthlyTrend(),
-                user?.role !== 'CUSTOMER' ? grievanceService.getRecentFeedback() : Promise.resolve([])
-            ]);
-            setMetrics(metricsRes);
-            setTrendData(trendRes);
-            setFeedbacks(feedbackRes);
+            const summary = await grievanceService.getDashboardSummary();
+            setMetrics(summary);
         } catch (error) {
-            console.error("Error fetching dashboard data:", error);
-            // toast.error("Failed to load dashboard metrics");
+            console.error("Error fetching dashboard metrics:", error);
+        } finally {
+            setIsMetricsLoading(false);
         }
     }, []);
 
     const fetchGrievances = React.useCallback(async () => {
         setLoading(true);
         try {
-            const params = {};
-            if (filters.status) params.status = filters.status;
-            if (filters.priority) params.priority = filters.priority;
-
-            const data = await grievanceService.getGrievances(params);
-            setGrievances(data);
+            const data = await grievanceService.getGrievancesPaged(
+                page, 
+                pageSize, 
+                filters.status || null, 
+                filters.priority || null
+            );
+            setGrievances(data.content || []);
+            setTotalPages(data.totalPages || 0);
+            setTotalElements(data.totalElements || 0);
         } catch (error) {
             console.error("Error fetching grievances:", error);
             toast.error("Failed to load grievances table");
         } finally {
             setLoading(false);
         }
-    }, [filters]);
+    }, [filters, page, pageSize]);
+
+    const notifications = useSelector((state) => state.notifications.notifications);
+    const lastNotif = notifications.length > 0 ? notifications[0] : null;
+
+    useEffect(() => {
+        if (lastNotif && !lastNotif.read) {
+            // Trigger a refresh of metrics if the notification is a grievance-related update
+            const lowerMsg = lastNotif.message.toLowerCase();
+            if (lowerMsg.includes('grievance') || lowerMsg.includes('resolved') || lowerMsg.includes('forwarded')) {
+                console.log("DashboardOverview: Auto-refreshing due to incoming notification");
+                fetchInitialData();
+                fetchGrievances();
+            }
+        }
+    }, [lastNotif, fetchInitialData, fetchGrievances]);
 
     useEffect(() => {
         fetchInitialData();
@@ -102,25 +116,6 @@ const DashboardOverview = () => {
         }
     };
 
-    const handleExportCSV = () => {
-        const headers = ['Ref No', 'Customer', 'Amount', 'Priority', 'Status', 'Created'];
-        const rows = grievances.map((g) => [
-            g.referenceNumber,
-            g.customerName || '',
-            g.transactionAmount || '',
-            g.priority,
-            g.status,
-            g.createdAt ? new Date(g.createdAt).toLocaleDateString() : ''
-        ]);
-        const csv = [headers, ...rows].map((r) => r.map((v) => `"${v}"`).join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `grievances_${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
 
     const getPriorityColor = (priority) => {
         return priority === 'HIGH' ? 'text-red-600 bg-red-100' : 'text-blue-600 bg-blue-100';
@@ -160,210 +155,84 @@ const DashboardOverview = () => {
     };
 
     return (
-        <div className="space-y-6">
-            {/* 1. Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-6 text-gray-900 dark:text-gray-100">
+            {/* ─── Stats Grid (Dynamic Metrics) ─── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total', value: metrics.total, icon: faList, color: 'blue' },
-                    { label: 'Pending', value: metrics.pending, icon: faExclamationTriangle, color: 'yellow' },
-                    user?.role === 'CUSTOMER' 
-                        ? { 
-                            label: 'Avg Resolution', 
-                            value: `${metrics.averageResolutionTime?.toFixed(1) || 0}h`, 
-                            icon: faArrowRight, 
-                            color: 'purple' 
-                          }
-                        : { label: 'High Risk', value: metrics.highRisk, icon: faArrowRight, color: 'red' },
+                    { label: 'Total Grievances', value: metrics.total, icon: faList, color: 'blue' },
+                    { label: 'Pending', value: metrics.pending, icon: faExclamationTriangle, color: 'orange' },
                     { label: 'Resolved', value: metrics.resolved, icon: faCheckCircle, color: 'green' },
-                ].map((card) => (
-                    <div key={card.label} className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 flex items-center space-x-4 border border-gray-100 dark:border-gray-700">
-                        <div className={`p-3 rounded-lg bg-${card.color}-100 dark:bg-${card.color}-900/30 text-${card.color}-600`}>
-                            <FontAwesomeIcon icon={card.icon} />
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{card.label}</p>
-                            <p className="text-2xl font-bold dark:text-white">{card.value}</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* 2. Volume Trend Chart */}
-                <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-100 dark:border-gray-700">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold dark:text-white">Grievance Volume Trend</h3>
-                        <span className="text-xs text-gray-500 font-medium px-2 py-1 bg-gray-50 dark:bg-gray-700 rounded-lg">Last 6 Months</span>
-                    </div>
-                    <div className="h-64 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={trendData}>
-                                <defs>
-                                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
-                                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                                <XAxis 
-                                    dataKey="month" 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{fill: '#9ca3af', fontSize: 12}}
-                                    dy={10}
-                                />
-                                <YAxis 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{fill: '#9ca3af', fontSize: 12}}
-                                />
-                                <Tooltip 
-                                    contentStyle={{ 
-                                        borderRadius: '12px', 
-                                        border: 'none', 
-                                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                                        backgroundColor: '#fff'
-                                    }}
-                                />
-                                <Area 
-                                    type="monotone" 
-                                    dataKey="count" 
-                                    stroke="#2563eb" 
-                                    strokeWidth={3}
-                                    fillOpacity={1} 
-                                    fill="url(#colorCount)" 
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* 3. Filters Section */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-100 dark:border-gray-700">
-                    <div className="flex items-center space-x-2 mb-4">
-                        <FontAwesomeIcon icon={faFilter} className="text-gray-400" />
-                        <h3 className="text-lg font-bold dark:text-white">Filters</h3>
-                    </div>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                            <select
-                                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500"
-                                value={filters.status}
-                                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                            >
-                                <option value="">All Statuses</option>
-                                <option value="FILED">Filed</option>
-                                <option value="PENDING">Pending</option>
-                                <option value="ACCEPTED">Accepted</option>
-                                <option value="IN_PROGRESS">In Progress</option>
-                                <option value="ESCALATED">Escalated</option>
-                                <option value="RESOLVED">Resolved</option>
-                                <option value="REJECTED">Rejected</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
-                            <select
-                                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500"
-                                value={filters.priority}
-                                onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
-                            >
-                                <option value="">All Priorities</option>
-                                <option value="NORMAL">Normal</option>
-                                <option value="HIGH">High</option>
-                            </select>
-                        </div>
-                        <button
-                            onClick={() => setFilters({ status: '', priority: '' })}
-                            className="w-full py-2 text-sm text-gray-600 hover:text-blue-600 dark:text-gray-400 font-medium"
-                        >
-                            Reset Filters
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* 4. Recent Feedback Section (Non-Customers) */}
-            {user?.role !== 'CUSTOMER' && (
-                <div className="mt-8 mb-8 bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-100 dark:border-gray-700">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center space-x-2">
-                            <FontAwesomeIcon icon={faStar} className="text-yellow-400" />
-                            <h3 className="text-lg font-bold dark:text-white">Recent Customer Feedback</h3>
-                        </div>
-                        <button 
-                            onClick={fetchInitialData}
-                            className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
-                        >
-                            <span>Refresh</span>
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {feedbacks.length === 0 ? (
-                            <div className="col-span-full text-center py-12 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-600">
-                                <FontAwesomeIcon icon={faCommentAlt} className="text-4xl mb-3 opacity-20" />
-                                <p className="font-medium text-lg italic">"No feedback received yet"</p>
-                                <p className="text-sm opacity-60">Feedback appears here once grievances are resolved and rated.</p>
+                    { label: 'High Priority', value: metrics.highRisk, icon: faExclamationTriangle, color: 'red' },
+                ].map((stat, i) => {
+                    const statTheme = getThemeClasses(stat.color);
+                    return (
+                        <div key={i} className={`${statTheme.glass} p-5 rounded-2xl shadow-sm flex items-center space-x-4 transition-all hover:shadow-md hover:scale-[1.02]`}>
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${statTheme.highlight}`}>
+                                <FontAwesomeIcon icon={stat.icon} className="text-xl" />
                             </div>
-                        ) : (
-                            feedbacks.slice(0, 6).map((fb) => (
-                                <div key={fb.id} className="group p-5 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 hover:shadow-md transition-all duration-300">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                                                {fb.grievanceNumber}
-                                            </span>
-                                            <span className="text-xs font-semibold dark:text-white line-clamp-1">{fb.title}</span>
-                                        </div>
-                                        <div className="flex text-yellow-400 text-xs">
-                                            {[1, 2, 3, 4, 5].map((star) => (
-                                                <FontAwesomeIcon 
-                                                    key={star} 
-                                                    icon={star <= fb.feedbackRating ? faStar : faStarReg} 
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="relative">
-                                        <div className="absolute -left-2 top-0 text-gray-200 dark:text-gray-600 text-2xl font-serif">"</div>
-                                        <p className="text-sm text-gray-700 dark:text-gray-300 italic pl-2 mb-4 line-clamp-3 min-h-[3rem]">
-                                            {fb.feedbackComment || 'No comment provided'}
-                                        </p>
-                                    </div>
-                                    <div className="pt-4 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center text-[11px]">
-                                        <div className="flex items-center space-x-2">
-                                            <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 font-bold">
-                                                {fb.customerName?.charAt(0)}
-                                            </div>
-                                            <span className="font-semibold text-gray-900 dark:text-gray-200">{fb.customerName}</span>
-                                        </div>
-                                        <span className="text-gray-500 dark:text-gray-400">
-                                            {fb.resolvedAt ? new Date(fb.resolvedAt).toLocaleDateString() : 'N/A'}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                            <div>
+                                <p className="text-xs font-semibold opacity-60 uppercase tracking-wider">{stat.label}</p>
+                                <p className="text-2xl font-bold">
+                                    {isMetricsLoading ? (
+                                        <span className="inline-block w-12 h-6 bg-gray-100 dark:bg-gray-700 animate-pulse rounded"></span>
+                                    ) : (
+                                        stat.value
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-100 dark:border-gray-700">
+                <div className="flex items-center space-x-2 mb-4">
+                    <FontAwesomeIcon icon={faFilter} className="text-gray-400" />
+                    <h3 className="text-lg font-bold dark:text-white">Filters</h3>
                 </div>
-            )}
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                        <select
+                            className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500"
+                            value={filters.status}
+                            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                        >
+                            <option value="">All Statuses</option>
+                            <option value="FILED">Filed</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="ACCEPTED">Accepted</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="ESCALATED">Escalated</option>
+                            <option value="RESOLVED">Resolved</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+                        <select
+                            className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500"
+                            value={filters.priority}
+                            onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
+                        >
+                            <option value="">All Priorities</option>
+                            <option value="NORMAL">Normal</option>
+                            <option value="HIGH">High</option>
+                        </select>
+                    </div>
+                    <button
+                        onClick={() => setFilters({ status: '', priority: '' })}
+                        className="w-full py-2 text-sm text-gray-600 hover:text-blue-600 dark:text-gray-400 font-medium"
+                    >
+                        Reset Filters
+                    </button>
+                </div>
+            </div>
 
             {/* 4. Table Section */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border border-gray-100 dark:border-gray-700">
-                <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
                     <h3 className="text-lg font-bold dark:text-white">Grievance Activity</h3>
-                    <button
-                        id="export-csv-btn"
-                        onClick={handleExportCSV}
-                        disabled={grievances.length === 0}
-                        className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        aria-label="Export grievances to CSV"
-                    >
-                        <FontAwesomeIcon icon={faDownload} className="w-3.5 h-3.5" />
-                        <span>Export CSV</span>
-                    </button>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -395,7 +264,14 @@ const DashboardOverview = () => {
                             ) : (
                                 grievances.map((g) => (
                                     <tr key={g.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-blue-600">#{g.referenceNumber}</td>
+                                        <td className="px-6 py-4 font-medium">
+                                            <Link 
+                                                to={`/dashboard/grievance/${g.id}`}
+                                                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors"
+                                            >
+                                                #{g.referenceNumber}
+                                            </Link>
+                                        </td>
                                         {user?.role !== 'CUSTOMER' && (
                                             <td className="px-6 py-4 dark:text-gray-300">{g.customerName}</td>
                                         )}
@@ -485,6 +361,40 @@ const DashboardOverview = () => {
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0 bg-gray-50/30 dark:bg-gray-900/10">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                        Showing <span className="text-gray-900 dark:text-white font-bold">{grievances.length}</span> of <span className="text-gray-900 dark:text-white font-bold">{totalElements}</span> records
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={() => setPage(p => Math.max(0, p - 1))}
+                            disabled={page === 0 || loading}
+                            className={`px-4 py-2 text-sm font-medium rounded-xl border transition-all duration-200 ${
+                                page === 0 
+                                ? 'bg-gray-50 dark:bg-gray-800/50 text-gray-400 border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-50' 
+                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm active:scale-95'
+                            }`}
+                        >
+                            Previous
+                        </button>
+                        <div className="px-4 py-2 text-sm font-bold bg-white dark:bg-gray-800 rounded-xl text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 shadow-inner">
+                            {page + 1} <span className="text-gray-400 font-medium">/</span> {totalPages || 1}
+                        </div>
+                        <button
+                            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                            disabled={page >= totalPages - 1 || loading}
+                            className={`px-4 py-2 text-sm font-medium rounded-xl border transition-all duration-200 ${
+                                page >= totalPages - 1 
+                                ? 'bg-gray-50 dark:bg-gray-800/50 text-gray-400 border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-50' 
+                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm active:scale-95'
+                            }`}
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

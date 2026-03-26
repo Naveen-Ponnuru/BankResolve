@@ -82,7 +82,7 @@ const Header = () => {
           </button>
 
           {/* ── Desktop nav links ─────────────────────────────────────────── */}
-          <nav className="hidden md:flex items-center space-x-1" aria-label="Main navigation">
+          <nav className="hidden lg:flex items-center space-x-1" aria-label="Main navigation">
             <NavLink to="/" end className={navLinkClass}>Home</NavLink>
 
             {!isAuthenticated && (
@@ -112,163 +112,95 @@ const Header = () => {
             )}
           </nav>
 
-          {/* ── Right slot: bank + theme + auth ───────────────────────────── */}
-          <div className="hidden md:flex items-center space-x-3">
+          {/* ── Right slot: bank + actions + auth ───────────────────────────── */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
 
-            {/* Bank Selector */}
-            {!isAuthenticated ? (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setBankDropdownOpen((o) => !o)}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-gray-600 border border-blue-200 dark:border-gray-600 transition"
-                  aria-haspopup="listbox"
-                  aria-expanded={bankDropdownOpen}
-                  aria-label="Select bank"
-                >
-                  <span className="text-sm">🏦</span>
-                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 max-w-[120px] truncate">
-                    {selectedBank?.name ?? "Select Bank"}
-                  </span>
-                  <FontAwesomeIcon
-                    icon={faChevronDown}
-                    className={`text-xs text-blue-600 dark:text-blue-400 transition-transform duration-200 ${bankDropdownOpen ? "rotate-180" : ""
-                      }`}
-                  />
-                </button>
-
-                {/* Dropdown */}
-                {bankDropdownOpen && (
-                  <>
-                    {/* Backdrop */}
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setBankDropdownOpen(false)}
-                      aria-hidden="true"
-                    />
-                    <div
-                      className="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden"
-                      role="listbox"
-                      aria-label="Available banks"
-                    >
-                      <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide border-b border-gray-100 dark:border-gray-700">
-                        Select Bank
-                      </div>
-                      {banks.map((bank) => (
-                        <button
-                          key={bank.id}
-                          type="button"
-                          onClick={() => handleBankSelect(bank)}
-                          role="option"
-                          aria-selected={selectedBank?.id === bank.id}
-                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-gray-700 transition flex justify-between items-center ${selectedBank?.id === bank.id
-                            ? "bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold"
-                            : "text-gray-700 dark:text-gray-200"
-                            }`}
-                        >
-                          <span>{bank.name}</span>
-                          {selectedBank?.id === bank.id && (
-                            <span className="text-blue-600 dark:text-blue-400 text-xs">✓</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-gray-700 border border-blue-200 dark:border-gray-600 opacity-90 cursor-default" title="Your Bank">
-                <span className="text-sm">🏦</span>
-                <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 max-w-[200px] truncate">
-                  Authenticated Bank: {authenticatedBankName || "Bank"}
-                </span>
-              </div>
-            )}
-
-            {/* Notifications */}
-            {isAuthenticated && <NotificationBell />}
-
-            {/* Theme Toggle */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
-              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              <FontAwesomeIcon
-                icon={isDark ? faSun : faMoon}
-                className={isDark ? "text-amber-400" : "text-gray-600"}
-              />
-            </button>
-
-            {/* ─── Auth: Login/Register OR User+Logout ─── */}
-            {!isAuthenticated ? (
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => navigate("/login")}
-                  className="px-4 py-1.5 rounded-lg text-sm font-semibold text-blue-600 dark:text-blue-400 border border-blue-500 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors"
-                >
-                  Login
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/register")}
-                  className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
-                >
-                  Register
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-3">
-                <div className="flex flex-col items-end">
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                    {reduxUser?.username || reduxUser?.name || "User"}
-                  </span>
-                  {roleLabel && (
-                    <span className="text-[11px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
-                      {roleLabel}
+            {/* Desktop Only: Bank Selector / Info */}
+            <div className="hidden md:flex items-center">
+              {!isAuthenticated ? (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setBankDropdownOpen((o) => !o)}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-gray-600 border border-blue-200 dark:border-gray-600 transition"
+                    aria-label="Select bank"
+                  >
+                    <span className="text-sm">🏦</span>
+                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 max-w-[120px] truncate">
+                      {selectedBank?.name ?? "Select Bank"}
                     </span>
+                    <FontAwesomeIcon
+                      icon={faChevronDown}
+                      className={`text-xs text-blue-600 dark:text-blue-400 transition-transform duration-200 ${bankDropdownOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {bankDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setBankDropdownOpen(false)} />
+                      <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
+                        {banks.map((bank) => (
+                          <button
+                            key={bank.id}
+                            type="button"
+                            onClick={() => handleBankSelect(bank)}
+                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-gray-700 transition ${selectedBank?.id === bank.id ? "bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold" : "text-gray-700 dark:text-gray-200"}`}
+                          >
+                            {bank.name}
+                          </button>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="px-3 py-1.5 rounded-lg text-sm font-semibold text-red-600 dark:text-red-400 border border-red-500 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/40 transition-colors"
-                >
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ── Mobile: theme toggle + hamburger ─────────────────────────── */}
-          <div className="md:hidden flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700"
-              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              <FontAwesomeIcon
-                icon={isDark ? faSun : faMoon}
-                className={isDark ? "text-amber-400" : "text-gray-600 dark:text-gray-300"}
-              />
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileOpen((o) => !o)}
-              className="p-2 text-gray-700 dark:text-gray-200 relative"
-              aria-label="Toggle mobile menu"
-              aria-expanded={mobileOpen}
-            >
-              {isAuthenticated && (
-                <div className="absolute -top-1 -left-1 scale-75">
-                  <NotificationBell />
+              ) : (
+                <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-gray-700 border border-blue-200 dark:border-gray-600 opacity-90" title="Your Bank">
+                  <span className="text-sm">🏦</span>
+                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 max-w-[180px] truncate">
+                    {authenticatedBankName || "Bank"}
+                  </span>
                 </div>
               )}
-              <FontAwesomeIcon icon={mobileOpen ? faTimes : faBars} />
-            </button>
+            </div>
+
+            {/* SHARED ACTIONS: Single Mount Point (Phase 6) */}
+            <div className="flex items-center space-x-1.5 sm:space-x-2">
+              {isAuthenticated && <NotificationBell />}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+                aria-label="Toggle theme"
+              >
+                <FontAwesomeIcon icon={isDark ? faSun : faMoon} className={isDark ? "text-amber-400" : "text-gray-600 dark:text-gray-300"} />
+              </button>
+            </div>
+
+            {/* Desktop Only: Auth buttons */}
+            {!isAuthenticated ? (
+              <div className="hidden md:flex items-center space-x-2">
+                <button onClick={() => navigate("/login")} className="px-4 py-1.5 rounded-lg text-sm font-semibold text-blue-600 dark:text-blue-400 border border-blue-500 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition">Login</button>
+                <button onClick={() => navigate("/register")} className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition">Register</button>
+              </div>
+            ) : (
+              <div className="hidden md:flex items-center space-x-3">
+                <div className="flex flex-col items-end mr-1">
+                  <span className="text-sm font-semibold dark:text-white truncate max-w-[120px]">{reduxUser?.name || reduxUser?.fullName || "User"}</span>
+                  <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400">{roleLabel}</span>
+                </div>
+                <button onClick={handleLogout} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-red-600 dark:text-red-400 border border-red-500 hover:bg-red-50 transition">Logout</button>
+              </div>
+            )}
+
+            {/* Mobile Only: Hamburger Toggle */}
+            <div className="md:hidden flex items-center">
+              <button
+                onClick={() => setMobileOpen(!mobileOpen)}
+                className="p-2 text-gray-700 dark:text-gray-200 ml-1"
+                aria-label="Menu"
+              >
+                <FontAwesomeIcon icon={mobileOpen ? faTimes : faBars} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -371,7 +303,7 @@ const Header = () => {
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                        {reduxUser?.username || reduxUser?.name || "User"}
+                        {reduxUser?.name || reduxUser?.fullName || "User"}
                       </p>
                       {roleLabel && (
                         <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">

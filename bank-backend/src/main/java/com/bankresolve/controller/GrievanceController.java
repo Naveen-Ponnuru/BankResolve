@@ -16,7 +16,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.http.CacheControl;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.security.Principal;
 import java.util.List;
 
@@ -47,6 +49,18 @@ public class GrievanceController {
             @RequestParam(required = false) GrievanceStatus status,
             @RequestParam(required = false) Priority priority) {
         return ResponseEntity.ok(grievanceService.listGrievances(principal.getName(), status, priority));
+    }
+
+    @GetMapping("/paged")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER', 'ADMIN')")
+    @Operation(summary = "List grievances (Paginated)", 
+               description = "Returns a paginated list of grievances based on role and bank residency.")
+    public ResponseEntity<Page<GrievanceResponseDto>> listGrievancesPaged(
+            Principal principal,
+            @RequestParam(required = false) GrievanceStatus status,
+            @RequestParam(required = false) Priority priority,
+            Pageable pageable) {
+        return ResponseEntity.ok(grievanceService.listGrievancesPaged(principal.getName(), status, priority, pageable));
     }
 
     @GetMapping("/my")
@@ -89,7 +103,9 @@ public class GrievanceController {
     @Operation(summary = "Get dashboard summary counts", 
                description = "Returns total, pending, resolved, and highRisk counts filtered by user role and bank residency.")
     public ResponseEntity<com.bankresolve.dto.GrievanceSummaryDto> getDashboardSummary(Principal principal) {
-        return ResponseEntity.ok(grievanceService.getDashboardSummary(principal.getName()));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache().mustRevalidate())
+                .body(grievanceService.getDashboardSummary(principal.getName()));
     }
 
     @GetMapping("/monthly-trend")
@@ -97,7 +113,9 @@ public class GrievanceController {
     @Operation(summary = "Get monthly grievance trend", 
                description = "Returns a list of monthly counts for the last 6 months, scoped by user role and residency.")
     public ResponseEntity<List<com.bankresolve.dto.MonthlyTrendDto>> getMonthlyTrend(Principal principal) {
-        return ResponseEntity.ok(grievanceService.getMonthlyTrend(principal.getName()));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache().mustRevalidate())
+                .body(grievanceService.getMonthlyTrend(principal.getName()));
     }
 
     @PostMapping("/{id}/feedback")

@@ -22,6 +22,7 @@ import FormSelect from "../ui/FormSelect";
 import SkeletonLoader from "../ui/SkeletonLoader";
 import { selectBank, selectAvailableBanks } from "../store/bankSlice";
 import { toast } from "react-toastify";
+import userService from "../services/userService";
 
 // ─── Role color mapping ───────────────────────────────────────────────────────
 const roleColors = {
@@ -31,12 +32,6 @@ const roleColors = {
   CUSTOMER: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600",
 };
 
-const mockUsers = [
-  { id: "USR-001", name: "System Admin", email: "admin@bank.com", role: "ADMIN", status: "ACTIVE", date: "2026-01-15" },
-  { id: "USR-002", name: "Eleanor Manager", email: "eleanor@bank.com", role: "MANAGER", status: "ACTIVE", date: "2026-01-20" },
-  { id: "USR-003", name: "Robert Staff", email: "robert@bank.com", role: "STAFF", status: "ACTIVE", date: "2026-02-01" },
-  { id: "USR-004", name: "Sarah Jenkins", email: "sarah@bank.com", role: "STAFF", status: "ACTIVE", date: "2026-02-05" },
-];
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
@@ -50,49 +45,59 @@ const AdminDashboard = () => {
   const availableBanks = useSelector(selectAvailableBanks);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setUsers(mockUsers);
-      setMetrics({
-        totalUsers: mockUsers.length,
-        activeStaff: mockUsers.filter((u) => u.role === "STAFF").length,
-        systemHealth: "99.9%",
-        uptime: "30 days",
-        totalBanks: availableBanks.length,
-        activeBanks: availableBanks.length,
-      });
-      setIsLoading(false);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [availableBanks.length]);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [usersData, statsData] = await Promise.all([
+          userService.getAllUsers(),
+          userService.getUserStats()
+        ]);
+        setUsers(usersData);
+        setMetrics(statsData);
+      } catch (error) {
+        console.error("Error fetching admin dashboard data:", error);
+        toast.error("Failed to load administrative data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
-  const handleAddUser = (e) => {
+  const handleAddUser = async (e) => {
     e.preventDefault();
     setIsProcessing(true);
-    setTimeout(() => {
-      const newUser = {
-        id: `USR-${String(users.length + 1).padStart(3, "0")}`,
-        name: e.target.name.value,
+    try {
+      const userData = {
+        fullName: e.target.name.value,
         email: e.target.email.value,
+        password: e.target.password.value,
         role: e.target.role.value,
-        status: "ACTIVE",
-        date: new Date().toISOString().split("T")[0],
+        bank: selectedBank // Associate with selected bank
       };
-      setUsers([...users, newUser]);
-      setMetrics((prev) => ({
-        ...prev,
-        totalUsers: prev.totalUsers + 1,
-        activeStaff: newUser.role === "STAFF" ? prev.activeStaff + 1 : prev.activeStaff,
-      }));
-      setIsProcessing(false);
+      await userService.createUser(userData);
+      
+      // Refresh data
+      const [usersData, statsData] = await Promise.all([
+        userService.getAllUsers(),
+        userService.getUserStats()
+      ]);
+      setUsers(usersData);
+      setMetrics(statsData);
+      
       setIsModalOpen(false);
       toast.success("New user provisioned successfully.");
       e.target.reset();
-    }, 1000);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to provision user");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const userColumns = [
     { key: "id", label: "User ID" },
-    { key: "name", label: "Name" },
+    { key: "fullName", label: "Name" },
     { key: "email", label: "Email" },
     {
       key: "role",
@@ -106,15 +111,15 @@ const AdminDashboard = () => {
     {
       key: "status",
       label: "Status",
-      render: (value) => (
-        <span className={`flex items-center text-sm font-medium ${value === "ACTIVE" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+      render: (value, user) => (
+        <span className={`flex items-center text-sm font-medium ${user.enabled ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
           }`}>
-          <span className={`h-2 w-2 rounded-full mr-2 ${value === "ACTIVE" ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-          {value}
+          <span className={`h-2 w-2 rounded-full mr-2 ${user.enabled ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+          {user.enabled ? "ACTIVE" : "DISABLED"}
         </span>
       ),
     },
-    { key: "date", label: "Joined" },
+    { key: "createdAt", label: "Joined", render: (v) => v ? new Date(v).toLocaleDateString() : 'N/A' },
   ];
 
   if (isLoading) return <SkeletonLoader count={4} />;

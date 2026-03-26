@@ -108,6 +108,9 @@ public class Grievance extends BaseEntity {
     @Column(name = "feedback_comment", columnDefinition = "TEXT")
     private String feedbackComment;
 
+    @Column(name = "feedback_at")
+    private Instant feedbackAt;
+
     @Column(name = "is_escalated", nullable = false)
     @Builder.Default
     private Boolean isEscalated = false;

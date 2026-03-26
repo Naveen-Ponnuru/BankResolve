@@ -5,7 +5,10 @@ import notificationService from "../services/notificationService";
 import { toast } from "react-toastify";
 import { useSelector, useDispatch } from "react-redux";
 import { selectUser } from "../store/auth-slice";
-import { setNotifications, addNotification, markRead, markAllAsRead } from "../store/notification-slice";
+import { setNotifications, addNotification, markRead, markAllAsRead, selectUnreadCount } from "../store/notification-slice";
+import { getThemeClasses } from "../utils/themeUtils";
+
+const selectToken = (state) => state.auth?.jwtToken || null;
 
 const NotificationBell = () => {
     const dispatch = useDispatch();
@@ -13,44 +16,114 @@ const NotificationBell = () => {
     const dropdownRef = useRef(null);
     
     const user = useSelector(selectUser);
+    const token = useSelector(selectToken);
     const notifications = useSelector((state) => state.notifications.notifications);
-    const unreadCount = useSelector((state) => state.notifications.unreadCount);
+    const unreadCount = useSelector(selectUnreadCount);
 
-    const fetchNotifications = async () => {
+    const theme = getThemeClasses(user?.bankTheme || 'blue');
+
+    const hasFetchedRef = useRef(false);
+
+    const fetchNotifications = async (force = false) => {
+        // Prevent over-fetching: if Redux has notifications or we already fetched, skip unless forced.
+        if (!force && (hasFetchedRef.current || notifications.length > 0)) return;
+        
         try {
+            hasFetchedRef.current = true;
             const data = await notificationService.getNotifications();
             dispatch(setNotifications(data));
         } catch (error) {
             console.error("Failed to fetch notifications:", error);
-            // toast.error("Could not sync notifications");
+            hasFetchedRef.current = false;
         }
     };
 
-    const hasFetched = useRef(false);
+    // Multi-tab synchronization and Reconciliation (Phase 14)
+    useEffect(() => {
+        const handleStorageChange = (e) => {
+            if (e.key === "bankresolve_notifications_sync") {
+                fetchNotifications(true);
+            }
+        };
+
+        const handleFocus = () => {
+            console.log("NotificationBell: App focused, reconciling state...");
+            fetchNotifications(true);
+        };
+
+        window.addEventListener("storage", handleStorageChange);
+        window.addEventListener("focus", handleFocus);
+        
+        // Tertiary safety net: Reconcile every 60 seconds for background tabs
+        const intervalId = setInterval(() => {
+            fetchNotifications(true);
+        }, 60000);
+
+        return () => {
+            window.removeEventListener("storage", handleStorageChange);
+            window.removeEventListener("focus", handleFocus);
+            clearInterval(intervalId);
+        };
+    }, []);
+
+    const isSubscribedRef = useRef(false);
+    const subscriptionRef = useRef(null);
+
+    const isInitialized = useSelector((state) => state.auth?.isInitialized);
 
     useEffect(() => {
-        if (!user?.id) return;
-
-        if (!hasFetched.current) {
-            hasFetched.current = true;
-            fetchNotifications();
+        // 🛑 STRICT GUARD: Wait for full hydration and valid credentials
+        if (!isInitialized || !user?.id || !token) {
+            if (subscriptionRef.current) {
+                subscriptionRef.current.disconnect();
+                subscriptionRef.current = null;
+                isSubscribedRef.current = false;
+            }
+            return;
         }
 
-        const subscription = notificationService.subscribe(user.id, (newNotif) => {
-            // Check Redux array via a callback to avoid stale closure if direct selection fails. Actually, Redux `notifications` state might be stale here, so just dispatching is safer if addNotification is smart enough. The user requests simple fixes.
-            dispatch(addNotification(newNotif));
-            
-            toast.info(`🔔 ${newNotif.message}`, { 
-                toastId: `notif-${newNotif.id}`,
-                position: "top-right",
-                autoClose: 5000
-            });
+        // Prevent duplicate subscriptions across re-renders/StrictMode mounts
+        const currentSubKey = `${user.id}`;
+        if (isSubscribedRef.current === currentSubKey) return;
+        
+        // Cleanup logic for stale subscriptions
+        if (subscriptionRef.current) {
+            subscriptionRef.current.disconnect();
+        }
+
+        isSubscribedRef.current = currentSubKey;
+        console.log(`NotificationBell: Initiating subscription for user ${user.id}`);
+        
+        // Initial fetch sync
+        fetchNotifications();
+
+        subscriptionRef.current = notificationService.subscribe(user.id, (newNotif, pollData) => {
+            if (pollData && Array.isArray(pollData)) {
+                dispatch(setNotifications(pollData));
+                return;
+            }
+            if (newNotif && !newNotif.read) {
+                dispatch(addNotification(newNotif));
+                toast.info(`🔔 ${newNotif.message}`, { 
+                    toastId: `notif-${newNotif.id}`,
+                    position: "top-center",
+                    autoClose: 5000
+                });
+            }
+        }, token, () => {
+            // ✅ FIX 3: On successful WebSocket connect, fetch from DB to catch missed events
+            console.log("NotificationBell: WebSocket connected — reconciling with DB...");
+            fetchNotifications(true);
         });
 
         return () => {
-            subscription.disconnect();
+            if (subscriptionRef.current) {
+                subscriptionRef.current.disconnect();
+                subscriptionRef.current = null;
+            }
+            isSubscribedRef.current = false;
         };
-    }, [user?.id, dispatch]); // Added dispatch to deps
+    }, [user?.id, token, isInitialized]); // Added necessary dependencies for stability
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -67,9 +140,10 @@ const NotificationBell = () => {
         e.stopPropagation();
         e.preventDefault();
         try {
-            // Phase 8: Enterprise stability - update UI instantly
+            // Phase 8: Enterprise stability - update UI instantly and sync across tabs
             await notificationService.markAsRead(id);
             dispatch(markRead(id));
+            localStorage.setItem("bankresolve_notifications_sync", Date.now().toString());
         } catch (error) {
             console.error("Failed to mark as read:", error);
             toast.error("Failed to update notification status");
@@ -100,7 +174,7 @@ const NotificationBell = () => {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-[60] overflow-hidden flex flex-col max-h-[400px]">
+                <div className={`absolute right-0 mt-2 w-84 ${theme.glass} rounded-2xl shadow-2xl z-[60] overflow-hidden flex flex-col max-h-[480px] animate-in fade-in zoom-in duration-200`}>
                     <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/50">
                         <span className="text-sm font-bold text-gray-900 dark:text-white">Notifications</span>
                         <div className="flex items-center space-x-2">
@@ -116,7 +190,9 @@ const NotificationBell = () => {
                                 <p className="text-sm text-gray-500 dark:text-gray-400">No notifications yet</p>
                             </div>
                         ) : (
-                            notifications.slice(0, 15).map((n) => (
+                            notifications
+                                .slice(0, 15)
+                                .map((n) => (
                                 <div 
                                     key={n.id} 
                                     className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group relative ${!n.read ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
@@ -156,8 +232,9 @@ const NotificationBell = () => {
                                 try {
                                     // 2. Persist to backend
                                     await notificationService.markAllAsRead();
-                                    // 3. Re-sync from server to confirm truth
-                                    await fetchNotifications();
+                                    // 3. Re-sync from server to confirm truth and notify other tabs
+                                    await fetchNotifications(true);
+                                    localStorage.setItem("bankresolve_notifications_sync", Date.now().toString());
                                     toast.success("All notifications marked as read", { autoClose: 2000 });
                                 } catch (e) {
                                     console.error("Could not mark all as read", e);

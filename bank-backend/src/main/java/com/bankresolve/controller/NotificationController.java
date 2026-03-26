@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.security.Principal;
 import java.util.List;
 
@@ -34,6 +36,18 @@ public class NotificationController {
             @RequestParam(defaultValue = "false", required = false) boolean unreadOnly) {
         User user = getUser(principal);
         return ResponseEntity.ok(notificationService.getUserNotifications(user.getId(), unreadOnly));
+    }
+
+    @GetMapping("/paged")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Get user notifications (Paginated)", 
+               description = "Returns a paginated list of notifications for the authenticated user.")
+    public ResponseEntity<Page<NotificationDto>> getNotificationsPaged(
+            Principal principal,
+            @RequestParam(defaultValue = "false", required = false) boolean unreadOnly,
+            Pageable pageable) {
+        User user = getUser(principal);
+        return ResponseEntity.ok(notificationService.getUserNotificationsPaged(user.getId(), unreadOnly, pageable));
     }
 
     @GetMapping("/unread-count")

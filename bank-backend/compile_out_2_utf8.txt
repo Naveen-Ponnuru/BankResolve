@@ -1,0 +1,58 @@
+﻿[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.bankresolve:bank-backend >--------------------
+[INFO] Building bank-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.4.1:clean (default-clean) @ bank-backend ---
+[INFO] Deleting C:\Bank Grievence Management System\EazyStickers\bank-grievance\bank-backend\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ bank-backend ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ bank-backend ---
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 83 source files with javac [debug release 21] to target\classes
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /C:/Bank Grievence Management System/EazyStickers/bank-grievance/bank-backend/src/main/java/com/bankresolve/service/impl/NotificationServiceImpl.java:[98,51] method findByUserIdAndReadFalseOrderByCreatedAtDesc in interface com.bankresolve.repository.NotificationRepository cannot be applied to given types;
+  required: java.lang.Long,org.springframework.data.domain.Pageable
+  found:    java.lang.Long
+  reason: actual and formal argument lists differ in length
+[ERROR] /C:/Bank Grievence Management System/EazyStickers/bank-grievance/bank-backend/src/main/java/com/bankresolve/security/TopicSubscriptionInterceptor.java:[116,16] variable destination is already defined in method preSend(org.springframework.messaging.Message<?>,org.springframework.messaging.MessageChannel)
+[ERROR] /C:/Bank Grievence Management System/EazyStickers/bank-grievance/bank-backend/src/main/java/com/bankresolve/service/impl/GrievanceServiceImpl.java:[290,66] cannot find symbol
+  symbol:   variable bankId
+  location: class com.bankresolve.service.impl.GrievanceServiceImpl
+[ERROR] /C:/Bank Grievence Management System/EazyStickers/bank-grievance/bank-backend/src/main/java/com/bankresolve/controller/PublicController.java:[24,31] cannot find symbol
+  symbol:   variable CacheControl
+  location: class com.bankresolve.controller.PublicController
+[INFO] 4 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  11.928 s
+[INFO] Finished at: 2026-03-25T15:41:07+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.11.0:compile (default-compile) on project bank-backend: Compilation failure: Compilation failure: 
+[ERROR] /C:/Bank Grievence Management System/EazyStickers/bank-grievance/bank-backend/src/main/java/com/bankresolve/service/impl/NotificationServiceImpl.java:[98,51] method findByUserIdAndReadFalseOrderByCreatedAtDesc in interface com.bankresolve.repository.NotificationRepository cannot be applied to given types;
+[ERROR]   required: java.lang.Long,org.springframework.data.domain.Pageable
+[ERROR]   found:    java.lang.Long
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /C:/Bank Grievence Management System/EazyStickers/bank-grievance/bank-backend/src/main/java/com/bankresolve/security/TopicSubscriptionInterceptor.java:[116,16] variable destination is already defined in method preSend(org.springframework.messaging.Message<?>,org.springframework.messaging.MessageChannel)
+[ERROR] /C:/Bank Grievence Management System/EazyStickers/bank-grievance/bank-backend/src/main/java/com/bankresolve/service/impl/GrievanceServiceImpl.java:[290,66] cannot find symbol
+[ERROR]   symbol:   variable bankId
+[ERROR]   location: class com.bankresolve.service.impl.GrievanceServiceImpl
+[ERROR] /C:/Bank Grievence Management System/EazyStickers/bank-grievance/bank-backend/src/main/java/com/bankresolve/controller/PublicController.java:[24,31] cannot find symbol
+[ERROR]   symbol:   variable CacheControl
+[ERROR]   location: class com.bankresolve.controller.PublicController
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

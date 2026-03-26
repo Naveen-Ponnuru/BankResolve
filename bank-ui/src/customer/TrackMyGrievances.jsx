@@ -5,7 +5,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as faStarRegular } from "@fortawesome/free-regular-svg-icons";
 import { faSearch, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import grievanceService from "../services/grievanceService";
 import StatusBadgeWithLabel from "../ui/StatusBadgeWithLabel";
 import SkeletonLoader from "../ui/SkeletonLoader";
@@ -133,9 +133,12 @@ const TrackMyGrievances = () => {
                                 {grievances.map((g) => (
                                     <tr key={g.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
                                         <td className="px-6 py-4">
-                                            <span className="text-sm font-bold text-blue-600 dark:text-blue-400 font-mono">
+                                            <Link
+                                                to={`/dashboard/grievance/${g.id}`}
+                                                className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors"
+                                            >
                                                 {g.grievanceNumber || `#${g.id}`}
-                                            </span>
+                                            </Link>
                                             {g.referenceNumber && (
                                                 <div className="text-[10px] text-gray-400 font-mono">{g.referenceNumber}</div>
                                             )}

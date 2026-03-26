@@ -24,7 +24,7 @@ const safeParse = (key) => {
 };
 
 // ─── Initial State (hydrate from localStorage) ───────────────────────────────
-const token = localStorage.getItem("token");
+const token = safeParse("jwtToken") || localStorage.getItem("jwtToken");
 const parsedUser = safeParse("user");
 
 const initialAuthState = {
@@ -33,6 +33,7 @@ const initialAuthState = {
   bankId: parsedUser?.bankId || null,
   bankName: parsedUser?.bankName || null,
   isAuthenticated: !!token && !!parsedUser,
+  isInitialized: false, // Hydration guard
 };
 
 // ... console.log stays roughly the same ...
@@ -50,7 +51,7 @@ const authSlice = createSlice({
       state.bankName = bankName || user?.bankName || null;
       state.isAuthenticated = true;
 
-      localStorage.setItem("token", jwtToken);
+      localStorage.setItem("jwtToken", jwtToken);
       localStorage.setItem("user", JSON.stringify(user));
 
       console.log("AUTH STATE:", state);
@@ -63,8 +64,12 @@ const authSlice = createSlice({
       state.bankName = null;
       state.isAuthenticated = false;
 
-      localStorage.removeItem("token");
+      localStorage.removeItem("jwtToken");
       localStorage.removeItem("user");
+    },
+
+    initializeAuth(state) {
+      state.isInitialized = true;
     },
 
     // Optional: update user profile without re-login
@@ -75,10 +80,11 @@ const authSlice = createSlice({
   },
 });
 
-export const { loginSuccess, logout, updateUser } = authSlice.actions;
+export const { loginSuccess, logout, updateUser, initializeAuth } = authSlice.actions;
 export default authSlice.reducer;
 
 // ─── Selectors ───────────────────────────────────────────────────────────────
 export const selectJwtToken = (state) => state.auth.jwtToken;
 export const selectUser = (state) => state.auth.user;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
+export const selectIsInitialized = (state) => state.auth.isInitialized;

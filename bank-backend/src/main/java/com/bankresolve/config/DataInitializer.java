@@ -19,6 +19,7 @@ public class DataInitializer implements CommandLineRunner {
     private final BankRepository bankRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.bankresolve.repository.BankFeatureRepository bankFeatureRepository;
 
     @Override
     @org.springframework.transaction.annotation.Transactional
@@ -33,17 +34,42 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
 
-        Bank hdfc = Bank.builder().name("HDFC Bank").code("HDFC001").build();
-        Bank icici = Bank.builder().name("ICICI Bank").code("ICICI001").build();
-        Bank sbi = Bank.builder().name("SBI Bank").code("SBI001").build();
-        Bank axis = Bank.builder().name("Axis Bank").code("AXIS001").build();
+        Bank hdfc = Bank.builder().name("HDFC Bank").code("HDFC001").themeColor("indigo").tagline("SmartBanking at your fingertips.").build();
+        Bank icici = Bank.builder().name("ICICI Bank").code("ICICI001").themeColor("orange").tagline("iMobile Pay: One-stop banking solution.").build();
+        Bank sbi = Bank.builder().name("SBI Bank").code("SBI001").themeColor("blue").tagline("Fast, transparent, and secure resolution.").build();
+        Bank axis = Bank.builder().name("Axis Bank").code("AXIS001").themeColor("blue").tagline("Experience the future of banking.").build();
 
         bankRepository.save(hdfc);
         bankRepository.save(icici);
         bankRepository.save(sbi);
         bankRepository.save(axis);
 
-        log.info("DataInitializer: seeded 4 banks (HDFC Bank, ICICI Bank, SBI, Axis Bank)");
+        // Seed Features for SBI
+        seedFeature("24/7 Digital Banking", "Access your accounts anytime, anywhere with YONO SBI.", "faClock", sbi);
+        seedFeature("Quick Grievance Resolution", "Dedicated nodal officers for swift complaint handling.", "faHeadset", sbi);
+        seedFeature("Widespread Network", "Largest ATM and branch network across the country.", "faShieldAlt", sbi);
+
+        // Seed Features for HDFC
+        seedFeature("SmartBanking", "Experience seamless banking with our award-winning mobile app.", "faMobileAlt", hdfc);
+        seedFeature("Priority Support", "Express grievance routing and handling for premium customers.", "faHeadset", hdfc);
+        seedFeature("Secure Transactions", "Industry-leading security for your peace of mind.", "faShieldAlt", hdfc);
+
+        // Seed Features for ICICI
+        seedFeature("iMobile Pay", "One-stop solution for all your banking and payment needs.", "faMobileAlt", icici);
+        seedFeature("Transparent Tracking", "Real-time updates on your grievance resolution status.", "faChartLine", icici);
+        seedFeature("Wealth Management", "Integrated services for your complete financial portfolio.", "faWallet", icici);
+
+        log.info("DataInitializer: seeded banks and features");
+    }
+
+    private void seedFeature(String title, String desc, String icon, Bank bank) {
+        com.bankresolve.entity.BankFeature feature = com.bankresolve.entity.BankFeature.builder()
+                .title(title)
+                .description(desc)
+                .iconName(icon)
+                .bank(bank)
+                .build();
+        bankFeatureRepository.save(feature);
     }
 
     private void seedInitialUsers() {

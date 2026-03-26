@@ -34,19 +34,6 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("User account is deactivated: " + email);
         }
 
-        // Map our Role enum to Spring Security authority with ROLE_ prefix
-        List<GrantedAuthority> authorities = Collections.singletonList(
-                new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
-        );
-
-        return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
-                user.getPassword(),
-                user.getEnabled(),      // enabled
-                true,                   // accountNonExpired
-                true,                   // credentialsNonExpired
-                true,                   // accountNonLocked
-                authorities
-        );
+        return new UserPrincipal(user);
     }
 }
