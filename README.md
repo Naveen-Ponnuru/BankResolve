@@ -1,83 +1,299 @@
-# 🏦 BankResolve - Enterprise Grievance Management System
+# 🏦 BankResolve – Smart Grievance & Feedback Management System
 
-BankResolve is a robust, full-stack enterprise application designed to streamline and automate customer grievance workflows across multiple partner banks. Built to replace legacy tracking systems, BankResolve enables real-time compliance tracking, intelligent escalation, and seamless communication between customers, bank staff, and managers.
+BankResolve is a full-stack web application developed to streamline the grievance and feedback handling process for a banking organization. It enables customers to register complaints, track their progress, receive real-time updates, and submit feedback after resolution. The system provides secure role-based access for Customers, Staff, and Managers to efficiently manage the complete grievance lifecycle.
 
-## ✨ Key Features
+---
 
-- **Role-Based Workflows (RBAC)**: Secure access control tailored for 4 distinct roles (Customer, Staff, Manager, Admin).
-- **Multi-Bank Architecture**: Segregated data environments tied to specific bank codes (e.g., SBI, HDFC, Axis). Staff and managers only have visibility into grievances registered under their specific bank branch/code.
-- **Real-Time Notifications**: Powered by WebSocket (STOMP), instantly alerting staff to SLA breaches, managers to escalations, and customers to resolution updates without requiring page refreshes.
-- **Intelligent Escalation & SLA Tracking**: Priorities (Low, Normal, High, Urgent) automatically map to Service Level Agreements. The system tracks resolution times and triggers breach alerts if deadlines are missed.
-- **Transparent Customer Tracking**: A dedicated interactive timeline map where customers can trace the life-cycle of their submitted grievances (Filed → Accepted → In Progress → Resolved).
-- **Dynamic Dashboards**: Role-specific dashboard hubs offering KPI metrics, pending tickets count, high-priority issues, and quick-action response forms.
+## 🚀 Features
 
-## 🛠️ Tech Stack
+### 👤 Customer
+- Secure registration and login using JWT Authentication
+- Submit grievances with category, priority, and attachments
+- Track grievance status in real time
+- Receive notifications for complaint updates
+- Submit feedback after grievance resolution
+- View grievance history
 
-### Backend (Core API)
-- **Java 21 & Spring Boot 3**: Core framework ensuring high performance and security.
-- **Spring Security & JWT**: Stateless authentication enforcing strict authorization rules.
-- **Spring Data JPA & Hibernate**: Robust ORM mapped to the relational database.
-- **MySQL**: Persistent relational data storage.
-- **WebSocket (STOMP)**: Real-time asynchronous messaging protocol.
+### 👨‍💼 Staff
+- View assigned grievances
+- Accept grievances
+- Update grievance status
+- Add remarks and progress updates
+- Escalate grievances to Manager when required
+- Receive real-time notifications
 
-### Frontend (Client SPA)
-- **React 18 & Vite**: Lightning-fast, optimized UI rendering and building.
-- **Redux Toolkit**: Centralized state management for authentication, banking context, and active notifications.
-- **TailwindCSS**: Utility-first CSS framework providing a sleek, responsive, and dark-mode compatible design.
-- **Axios & React Router**: Efficient data fetching and seamless client-side single-page routing.
-- **SockJS-client & @stomp/stompjs**: Frontend drivers for establishing persistent real-time socket connections.
+### 👨‍💻 Manager
+- View all grievances
+- Handle escalated grievances
+- Resolve complaints
+- Monitor complaint statistics
+- View customer feedback
+- Receive escalation notifications
 
-## 📂 Project Structure
+---
 
-```text
-bank-grievance/
-├── bank-backend/         # Spring Boot 3 Java API
-│   ├── src/main/java...  # Controllers, Services, Security, DTOs, Repositories
-│   └── application.yml   # Environment profiles and DB configurations
-│
-└── bank-ui/              # React + Vite Frontend
-    ├── src/components/   # Reusable UI elements and real-time Notification Bell
-    ├── src/pages/        # Role-specific Views (Admin, Customer, specific Dashboards)
-    ├── src/services/     # API Integration layers (grievanceService, authService)
-    └── src/store/        # Redux slices
+# 📌 Grievance Workflow
+
+```
+Customer
+     │
+     ▼
+Submit Grievance
+     │
+     ▼
+Staff Reviews
+     │
+ ┌───┴────┐
+ │        │
+Resolved  Escalated
+ │        │
+ ▼        ▼
+Customer  Manager
+Feedback  Resolves
+     │
+     ▼
+Completed
 ```
 
-## 🚀 Getting Started
+---
 
-### Prerequisites
-- **Java 21+** installed
-- **Node.js (v18+)** installed
-- **MySQL 8.0+** running locally or via Docker
+# 🔐 Authentication & Security
 
-### 1. Backend Setup
-1. Navigate to the backend directory:
-   ```bash
-   cd bank-backend
-   ```
-2. Update the database properties in `src/main/resources/application.yml` with your local MySQL credentials.
-3. Start the Spring Boot application:
-   ```bash
-   ./mvnw spring-boot:run
-   ```
-   *The API will start at `http://localhost:8080/api`*
+- JWT Authentication
+- Spring Security
+- Password Encryption using BCrypt
+- Role-Based Authorization
+- Protected REST APIs
+- Secure API Access
 
-### 2. Frontend Setup
-1. Open a new terminal and navigate to the UI directory:
-   ```bash
-   cd bank-ui
-   ```
-2. Install the necessary dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the React development server:
-   ```bash
-   npm run dev
-   ```
-   *The UI will run on `http://localhost:5173`*
+---
 
-## 🛡️ Authentication & Postman Testing
-When testing API routes via Postman or Curl, BankResolve uses token-based Bearer authentication. After executing the `/api/auth/login` endpoint, extract the JWT from the JSON response and include it as an `Authorization: Bearer <token>` header in subsequent requests.
+# 🔔 Real-Time Notifications
 
-## 📄 License
-This project is proprietary and intended as an enterprise template for financial service organizations.
+The application uses **WebSocket (STOMP)** for instant notifications.
+
+Examples:
+- New grievance submitted
+- Complaint accepted
+- Status updated
+- Complaint escalated
+- Complaint resolved
+- Feedback submitted
+
+---
+
+# 📊 Dashboard
+
+### Customer Dashboard
+- Total Complaints
+- Pending Complaints
+- Resolved Complaints
+- Recent Notifications
+- Feedback Status
+
+### Staff Dashboard
+- Assigned Complaints
+- Pending Work
+- In Progress
+- Resolved Today
+
+### Manager Dashboard
+- Overall Complaints
+- Escalated Complaints
+- Resolution Statistics
+- Customer Feedback
+
+---
+
+# 🛠 Tech Stack
+
+## Backend
+
+- Java 21
+- Spring Boot 3
+- Spring Security
+- Spring Data JPA
+- Hibernate
+- JWT Authentication
+- MySQL
+- WebSocket (STOMP)
+- Maven
+
+---
+
+## Frontend
+
+- React 18
+- Vite
+- Redux Toolkit
+- Axios
+- React Router
+- Tailwind CSS
+
+---
+
+## Database
+
+- MySQL
+
+---
+
+## Tools
+
+- IntelliJ IDEA
+- VS Code
+- Git
+- GitHub
+- Postman
+
+---
+
+# 📂 Project Structure
+
+```
+BankResolve
+│
+├── bank-backend
+│   ├── controller
+│   ├── service
+│   ├── repository
+│   ├── entity
+│   ├── dto
+│   ├── security
+│   ├── config
+│   └── exception
+│
+└── bank-ui
+    ├── src
+    │   ├── components
+    │   ├── pages
+    │   ├── services
+    │   ├── store
+    │   ├── hooks
+    │   └── layout
+```
+
+---
+
+# ⚙️ Installation
+
+## Clone Repository
+
+```bash
+git clone https://github.com/Naveen-Ponnuru/BankResolve.git
+```
+
+---
+
+## Backend
+
+```bash
+cd bank-backend
+```
+
+Configure MySQL credentials in:
+
+```
+application.properties
+```
+
+Run:
+
+```bash
+mvn spring-boot:run
+```
+
+Backend runs at
+
+```
+http://localhost:8080
+```
+
+---
+
+## Frontend
+
+```bash
+cd bank-ui
+```
+
+Install dependencies
+
+```bash
+npm install
+```
+
+Run
+
+```bash
+npm run dev
+```
+
+Frontend runs at
+
+```
+http://localhost:5173
+```
+
+---
+
+# 🔑 Demo Roles
+
+| Role | Description |
+|-------|-------------|
+| Customer | Register grievances and submit feedback |
+| Staff | Process assigned grievances |
+| Manager | Handle escalations and monitor the system |
+
+---
+
+# 📦 REST API Modules
+
+- Authentication API
+- User API
+- Grievance API
+- Feedback API
+- Notification API
+- Contact API
+
+---
+
+# 💡 Highlights
+
+- Secure JWT Authentication
+- Role-Based Access Control (RBAC)
+- Real-Time Notifications
+- Complaint Tracking
+- Feedback Management
+- Responsive User Interface
+- Clean Layered Architecture
+- RESTful APIs
+- Spring Boot Best Practices
+
+---
+
+# 🎯 Future Enhancements
+
+- Email Notifications
+- SMS Notifications
+- Analytics Dashboard
+- Complaint Search & Filters
+- File Upload Improvements
+- Report Generation
+- Docker Deployment
+- Cloud Deployment (AWS)
+
+---
+
+# 👨‍💻 Developed By
+
+**Ponnuru Venkata Naveen**
+
+- Java Full Stack Developer
+- Spring Boot | React | MySQL | REST APIs | JWT | WebSocket
+
+---
+
+# 📄 License
+
+This project is developed for educational, internship, and portfolio purposes.
