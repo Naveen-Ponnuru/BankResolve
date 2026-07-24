@@ -10,7 +10,6 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { selectIsAuthenticated } from "./store/auth-slice";
-import { selectBank } from "./store/bankSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faEye,
@@ -23,7 +22,6 @@ export default function Register() {
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const navigate = useNavigate();
-  const selectedBank = useSelector(selectBank);
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const [role, setRole] = useState("CUSTOMER");
   const [showPassword, setShowPassword] = useState(false);
@@ -59,18 +57,7 @@ export default function Register() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Bank Context Card */}
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg border-l-4 border-blue-600 flex items-center space-x-3">
-          <div className="text-2xl">🏦</div>
-          <div>
-            <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-              {selectedBank.name}
-            </p>
-            <p className="text-xs text-blue-700 dark:text-blue-300">
-              Creating account for this bank
-            </p>
-          </div>
-        </div>
+
 
         {/* Register Form Card */}
         <div className="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl px-8 py-10 border border-gray-200 dark:border-gray-700">
@@ -283,7 +270,6 @@ export default function Register() {
                 <option value="CUSTOMER">Customer</option>
                 <option value="STAFF">Staff</option>
                 <option value="MANAGER">Manager</option>
-                <option value="ADMIN">Admin</option>
               </select>
               {formErrors.role && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -292,44 +278,7 @@ export default function Register() {
               )}
             </div>
 
-            {/* Bank ID (only for STAFF / MANAGER) */}
-            {(role === "STAFF" || role === "MANAGER") && (
-              <div>
-                <label
-                  htmlFor="bankId"
-                  className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
-                >
-                  Bank ID
-                </label>
-                <input
-                  id="bankId"
-                  name="bankId"
-                  type="text"
-                  placeholder="Enter bank ID (e.g. 1)"
-                  aria-label="Bank ID"
-                  aria-invalid={!!formErrors.bankId}
-                  className={`w-full px-4 py-3 rounded-lg border-2 transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-                    formErrors.bankId
-                      ? "border-red-500 focus:border-red-600 focus:ring-red-200 dark:focus:ring-red-900"
-                      : "border-gray-300 dark:border-gray-600 focus:border-blue-600 focus:ring-blue-200 dark:focus:ring-blue-900"
-                  } focus:outline-none focus:ring-2`}
-                />
-                {formErrors.bankId && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                    {formErrors.bankId}
-                  </p>
-                )}
-              </div>
-            )}
 
-            {/* Hidden bank ID from selected bank (for CUSTOMER / ADMIN defaults) */}
-            {selectedBank?.id && (
-              <input
-                type="hidden"
-                name="bankIdFromContext"
-                value={selectedBank.id}
-              />
-            )}
 
             {/* Terms Agreement */}
             <div className="p-4 bg-blue-50 dark:bg-blue-900 rounded-lg">

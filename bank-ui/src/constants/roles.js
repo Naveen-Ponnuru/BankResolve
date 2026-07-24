@@ -2,7 +2,6 @@ export const ROLES = {
   CUSTOMER: "CUSTOMER",
   STAFF: "STAFF",
   MANAGER: "MANAGER",
-  ADMIN: "ADMIN",
 };
 
 export const PERMISSIONS = {
@@ -22,9 +21,9 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_DASHBOARD,
     PERMISSIONS.UPDATE_GRIEVANCE,
     PERMISSIONS.ASSIGN_GRIEVANCE,
+    PERMISSIONS.MANAGE_USERS,
     PERMISSIONS.VIEW_REPORTS,
   ],
-  [ROLES.ADMIN]: Object.values(PERMISSIONS), // Admin has all permissions
 };
 
 export const hasPermission = (roles, permission) => {

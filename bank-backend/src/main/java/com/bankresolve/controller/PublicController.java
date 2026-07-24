@@ -17,12 +17,13 @@ public class PublicController {
 
     private final PublicService publicService;
 
-    @GetMapping("/stats/{bankId}")
-    @Operation(summary = "Get public statistics for a bank",
-               description = "Returns aggregated public statistics (users, grievances resolved, avg resolution time, satisfaction %, recent feedback) for the specified bank id.")
-    public ResponseEntity<PublicStatsDto> getPublicStats(@PathVariable Long bankId) {
+    @GetMapping("/stats")
+    @Operation(summary = "Get public statistics",
+               description = "Returns aggregated public statistics (users, grievances resolved, recent feedback) for the application.")
+    public ResponseEntity<PublicStatsDto> getPublicStats() {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noCache().mustRevalidate())
-                .body(publicService.getPublicStats(bankId));
+                .body(publicService.getPublicStats());
     }
 }
+

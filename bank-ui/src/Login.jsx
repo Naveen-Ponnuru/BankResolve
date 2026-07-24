@@ -10,7 +10,6 @@ import {
 import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 import { loginSuccess, selectIsAuthenticated } from "./store/auth-slice";
-import { selectBank } from "./store/bankSlice";
 import { normalizeRole } from "./utils/roleUtils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
@@ -21,8 +20,8 @@ export default function Login() {
   const isSubmitting = navigation.state === "submitting";
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const selectedBank = useSelector(selectBank);
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // Phase 6: Block login page if already authenticated
@@ -50,8 +49,6 @@ export default function Login() {
         loginSuccess({
           jwtToken: actionData.jwtToken,
           user: actionData.user,
-          bankId: actionData.bankId,
-          bankName: actionData.bankName,
         }),
       );
       // ✅ Phase 6: toast fires ONCE here
@@ -68,32 +65,19 @@ export default function Login() {
         case "STAFF":
           navigate("/staff/dashboard", { replace: true });
           break;
-        case "ADMIN":
-          navigate("/admin/dashboard", { replace: true });
-          break;
         default:
           navigate("/customer/dashboard", { replace: true });
       }
     } else if (actionData?.errors) {
-      toast.error(actionData.errors.message || "Login failed.");
+      toast.error(actionData.errors.message || "Invalid email or password.");
+      setTimeout(() => setPassword(""), 0); // Clear only the password field after failure
     }
   }, [actionData, dispatch, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Bank Context Card */}
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg border-l-4 border-blue-600 flex items-center space-x-3">
-          <div className="text-2xl">🏦</div>
-          <div>
-            <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-              {selectedBank.name}
-            </p>
-            <p className="text-xs text-blue-700 dark:text-blue-300">
-              Change bank from home page
-            </p>
-          </div>
-        </div>
+
 
         {/* Login Form Card */}
         <div className="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl px-8 py-10 border border-gray-200 dark:border-gray-700">
@@ -141,6 +125,8 @@ export default function Login() {
                   id="password"
                   name="password"
                   type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete="current-password"
                   required
@@ -181,7 +167,7 @@ export default function Login() {
             </div>
 
             {/* Submit Button */}
-            <input type="hidden" name="bankId" value={selectedBank?.id || ""} />
+
             <button
               type="submit"
               disabled={isSubmitting}

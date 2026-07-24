@@ -6,7 +6,7 @@ import {
   faStar
 } from "@fortawesome/free-solid-svg-icons";
 import { useSelector } from "react-redux";
-import { selectBank, selectAvailableBanks } from "../../store/bankSlice";
+import { BANK_NAME } from "../../constants/appConstants";
 import { selectIsAuthenticated, selectUser } from "../../store/auth-slice";
 import { normalizeRole } from "../../utils/roleUtils";
 import grievanceService from "../../services/grievanceService";
@@ -14,24 +14,16 @@ import { getThemeClasses } from "../../utils/themeUtils";
 
 
 const Home = () => {
-  const selectedBankFromStore = useSelector(selectBank);
-  const availableBanks = useSelector(selectAvailableBanks);
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const reduxUser = useSelector(selectUser);
   const role = reduxUser ? normalizeRole(reduxUser.role) : null;
 
-  // Find the full bank object with rich metadata (features, tagline, theme)
-  // Strict isolation: if logged in, use user's bank. Else use selectedBank from dropdown.
-  const activeBankId = isAuthenticated && reduxUser?.bankId ? reduxUser.bankId : selectedBankFromStore?.id;
-  const fullBankData = availableBanks.find(b => b.id === activeBankId) || selectedBankFromStore;
-
-  const activeBankName = fullBankData?.name || "BankResolve";
-  const themeClasses = getThemeClasses(fullBankData?.themeColor || "blue");
+  const activeBankName = BANK_NAME;
+  const themeClasses = getThemeClasses("blue");
   
   const dashboardLink = role === "MANAGER" ? "/manager/dashboard" :
     role === "STAFF" ? "/staff/dashboard" :
-      role === "ADMIN" ? "/admin/dashboard" :
-        "/customer/dashboard";
+      "/customer/dashboard";
 
   const [statsData, setStatsData] = useState({
     totalUsers: 0,
@@ -44,16 +36,9 @@ const Home = () => {
     let intervalId;
 
     const fetchStats = async (isInitial = false) => {
-      if (!activeBankId || isNaN(activeBankId)) return;
       try {
         if (isInitial) setLoadingStats(true);
-        // Ensure activeBankId is numeric before sending to backend
-        const numericBankId = Number(activeBankId);
-        if (isNaN(numericBankId)) {
-            console.warn("Home: Skipping stats fetch, bankId is not a number:", activeBankId);
-            return;
-        }
-        const data = await grievanceService.getPublicStats(numericBankId);
+        const data = await grievanceService.getPublicStats();
         setStatsData(data || {
             totalUsers: 0,
             grievancesResolved: 0,
@@ -70,16 +55,14 @@ const Home = () => {
     fetchStats(true);
 
     // Set up polling for real-time updates (every 10 seconds)
-    if (activeBankId) {
-      intervalId = setInterval(() => {
-        fetchStats(false);
-      }, 10000);
-    }
+    intervalId = setInterval(() => {
+      fetchStats(false);
+    }, 10000);
 
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [activeBankId]);
+  }, []);
 
   const displayStats = [
     { label: "Grievances Resolved", value: loadingStats ? "-" : statsData.grievancesResolved },

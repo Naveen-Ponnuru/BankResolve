@@ -6,7 +6,7 @@
 import apiClient from "../api/apiClient";
 
 const userService = {
-    /** GET /users — Admin: list all users with optional filters */
+    /** GET /users — Manager: list all users with optional filters */
     getAllUsers: async (params = {}) => {
         const response = await apiClient.get("/users", { params });
         return response.data;
@@ -24,25 +24,25 @@ const userService = {
         return response.data;
     },
 
-    /** POST /users — Admin: create new user (staff/manager) */
+    /** POST /users — Manager: create new user (staff/manager) */
     createUser: async (userData) => {
         const response = await apiClient.post("/users", userData);
         return response.data;
     },
 
-    /** PATCH /users/:id/role — Admin: assign role */
+    /** PATCH /users/:id/role — Manager: assign role */
     updateUserRole: async (userId, role) => {
         const response = await apiClient.patch(`/users/${userId}/role`, { role });
         return response.data;
     },
 
-    /** PATCH /users/:id/status — Admin: activate/deactivate */
+    /** PATCH /users/:id/status — Manager: activate/deactivate */
     updateUserStatus: async (userId, status) => {
         const response = await apiClient.patch(`/users/${userId}/status`, { status });
         return response.data;
     },
 
-    /** DELETE /users/:id — Admin: hard delete (use with caution) */
+    /** DELETE /users/:id — Manager: hard delete (use with caution) */
     deleteUser: async (userId) => {
         const response = await apiClient.delete(`/users/${userId}`);
         return response.data;
@@ -54,7 +54,7 @@ const userService = {
         return response.data;
     },
 
-    /** GET /users/stats — Admin: user statistics summary */
+    /** GET /users/stats — Manager: user statistics summary */
     getUserStats: async () => {
         const response = await apiClient.get("/users/stats");
         return response.data;

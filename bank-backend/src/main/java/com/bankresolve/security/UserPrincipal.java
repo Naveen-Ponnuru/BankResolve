@@ -10,7 +10,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * Custom UserDetails implementation to carry database ID and Bank ID
+ * Custom UserDetails implementation to carry database ID
  * throughout the security context, including WebSocket sessions.
  */
 @Getter
@@ -20,7 +20,6 @@ public class UserPrincipal implements UserDetails {
     private final String email;
     private final String password;
     private final boolean enabled;
-    private final Long bankId;
     private final Collection<? extends GrantedAuthority> authorities;
 
     public UserPrincipal(User user) {
@@ -28,7 +27,6 @@ public class UserPrincipal implements UserDetails {
         this.email = user.getEmail();
         this.password = user.getPassword();
         this.enabled = user.getEnabled();
-        this.bankId = user.getBank() != null ? user.getBank().getId() : null;
         this.authorities = Collections.singletonList(
                 new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
         );
@@ -69,3 +67,4 @@ public class UserPrincipal implements UserDetails {
         return enabled;
     }
 }
+

@@ -28,8 +28,6 @@ public class AuthResponseDto {
      */
     private String email;
     private Role role;
-    private Long bankId;
-    private String bankName;
 
     private UserDto user;
 
@@ -42,7 +40,6 @@ public class AuthResponseDto {
         private String name;
         private String email;
         private Role role;
-        private Long bankId;
-        private String bankName;
     }
 }
+

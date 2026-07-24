@@ -307,7 +307,7 @@ const DashboardOverview = () => {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end space-x-2">
                                                 {/* Status Update Dropdown for STAFF/MANAGER */}
-                                                {((user?.role === 'STAFF' || user?.role === 'MANAGER' || user?.role === 'ADMIN')) && g.status !== 'RESOLVED' && g.status !== 'REJECTED' ? (
+                                                {((user?.role === 'STAFF' || user?.role === 'MANAGER')) && g.status !== 'RESOLVED' && g.status !== 'REJECTED' ? (
                                                     <>
                                                         <select
                                                             className={`text-xs bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 rounded-lg py-1.5 px-3 focus:ring-0 appearance-none cursor-pointer pr-8 bg-no-repeat bg-[right_0.5rem_center] dark:text-white ${
@@ -323,7 +323,7 @@ const DashboardOverview = () => {
                                                             <option value="IN_PROGRESS">In Progress</option>
                                                             <option value="RESOLVED">Resolved</option>
                                                             <option value="REJECTED">Rejected</option>
-                                                            {(g.status === 'ESCALATED' || user?.role === 'MANAGER' || user?.role === 'ADMIN') && <option value="ESCALATED">Escalated</option>}
+                                                            {(g.status === 'ESCALATED' || user?.role === 'MANAGER') && <option value="ESCALATED">Escalated</option>}
                                                         </select>
                                                         
                                                         {/* Reject Button (X) */}

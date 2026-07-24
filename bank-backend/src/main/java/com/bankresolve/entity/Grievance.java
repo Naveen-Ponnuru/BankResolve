@@ -14,7 +14,6 @@ import java.time.Instant;
 @Table(name = "grievances", indexes = {
         @Index(name = "idx_grievance_status",   columnList = "status"),
         @Index(name = "idx_grievance_priority", columnList = "priority"),
-        @Index(name = "idx_grievance_bank",     columnList = "bank_id"),
         @Index(name = "idx_grievance_customer", columnList = "customer_id"),
         @Index(name = "idx_grievance_staff",    columnList = "assigned_staff_id"),
         @Index(name = "idx_grievance_manager",  columnList = "assigned_manager_id")
@@ -78,11 +77,6 @@ public class Grievance extends BaseEntity {
                 foreignKey = @ForeignKey(name = "fk_grievance_manager"))
     private User assignedManager;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "bank_id", nullable = false,
-                foreignKey = @ForeignKey(name = "fk_grievance_bank"))
-    private Bank bank;
-
     // ─── Optional resolution fields (not in base schema) ─────────────────────
     @Column(name = "resolved_at")
     private Instant resolvedAt;
@@ -95,12 +89,6 @@ public class Grievance extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "resolved_role", length = 50)
     private com.bankresolve.entity.enums.Role resolvedRole;
-
-    @Column(name = "target_sla")
-    private Instant targetSla;
-
-    @Column(name = "sla_deadline")
-    private java.time.LocalDateTime slaDeadline;
 
     @Column(name = "feedback_rating")
     private Integer feedbackRating;
@@ -116,12 +104,6 @@ public class Grievance extends BaseEntity {
     private Boolean isEscalated = false;
 
     // ─── Workflow tracking fields ──────────────────────────────────────────────
-
-    @Column(name = "updated_at")
-    private Instant updatedAt;
-
-    @Column(name = "updated_by", length = 100)
-    private String updatedBy;
 
     @Column(name = "assigned_to", length = 100)
     private String assignedTo;

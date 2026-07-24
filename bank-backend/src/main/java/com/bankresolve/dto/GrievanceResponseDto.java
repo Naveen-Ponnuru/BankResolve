@@ -21,7 +21,6 @@ public class GrievanceResponseDto {
     private String description;
     private String category;
     private BigDecimal transactionAmount;
-    private Long bankId;
     private GrievanceStatus status;
     private Priority priority;
     private Long customerId;
@@ -38,7 +37,6 @@ public class GrievanceResponseDto {
     private Integer feedbackRating;
     private String feedbackComment;
     private Instant feedbackAt;
-    private Instant targetSla;
     private Boolean isEscalated;
     private Instant updatedAt;
     private String updatedBy;

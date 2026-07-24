@@ -1,5 +1,6 @@
 package com.bankresolve.config;
 
+import com.bankresolve.security.UserPrincipal;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -8,19 +9,28 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 
 /**
- * Provides the current authenticated user's name for JPA auditing
- * (createdBy / updatedBy columns).
+ * AuditorAware implementation — provides the current auditor's username (email)
+ * for Spring Data JPA auditing (@CreatedBy, @LastModifiedBy).
  */
 @Component("auditorAwareImpl")
 public class AuditorAwareImpl implements AuditorAware<String> {
 
     @Override
     public Optional<String> getCurrentAuditor() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()
-                || "anonymousUser".equals(auth.getPrincipal())) {
-            return Optional.of("SYSTEM");
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated() ||
+                "anonymousUser".equals(authentication.getPrincipal())) {
+            return Optional.of("Anonymous user");
         }
-        return Optional.of(auth.getName());
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserPrincipal userPrincipal) {
+            return Optional.ofNullable(userPrincipal.getEmail());
+        } else if (principal instanceof String strPrincipal) {
+            return Optional.of(strPrincipal);
+        }
+
+        return Optional.of("System");
     }
 }

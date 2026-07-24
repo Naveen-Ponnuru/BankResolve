@@ -29,19 +29,17 @@ public class PublicServiceImpl implements PublicService {
 
     @Override
     @Transactional(readOnly = true)
-    public PublicStatsDto getPublicStats(Long bankId) {
-        log.debug("[PublicStats] Fetching metrics for bankId: {}", bankId);
+    public PublicStatsDto getPublicStats() {
+        log.debug("[PublicStats] Fetching metrics");
         
-        // 1. Total users for this bank
-        long totalUsers = userRepository.countByBankId(bankId);
+        long totalUsers = userRepository.count();
+        long grievancesResolved = grievanceRepository.countByStatus(GrievanceStatus.RESOLVED);
 
-        // 2. Total grievances resolved for this bank (Optimized Count)
-        long grievancesResolved = grievanceRepository.countByBankIdAndStatus(bankId, GrievanceStatus.RESOLVED);
+        log.info("[PublicStats] users: {}, resolved: {}", totalUsers, grievancesResolved);
 
-        log.info("[PublicStats] bankId: {}, users: {}, resolved: {}", bankId, totalUsers, grievancesResolved);
-
-        // 3. Latest customer feedback (Already limited to Top 5 by repository)
-        List<Grievance> ratedGrievances = grievanceRepository.findTop5ByBankIdAndFeedbackRatingIsNotNullOrderByResolvedAtDesc(bankId);
+        List<Grievance> ratedGrievances = grievanceRepository.findRecentFeedbackGlobal().stream()
+                .limit(5)
+                .collect(Collectors.toList());
         
         List<PublicFeedbackDto> recentFeedback = ratedGrievances.stream()
                 .map(this::mapToFeedbackDto)
@@ -55,7 +53,6 @@ public class PublicServiceImpl implements PublicService {
     }
 
     private PublicFeedbackDto mapToFeedbackDto(Grievance grievance) {
-        // Return full customer name (No masking allowed as per Phase 15 requirements)
         String customerName = "A Customer";
         if (grievance.getCustomer() != null && grievance.getCustomer().getFullName() != null) {
             customerName = grievance.getCustomer().getFullName().trim();
@@ -63,7 +60,6 @@ public class PublicServiceImpl implements PublicService {
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy").withZone(ZoneId.systemDefault());
         
-        // Use feedbackAt, fallback to resolvedAt, then empty string
         java.time.Instant dateToUse = grievance.getFeedbackAt() != null ? grievance.getFeedbackAt() : grievance.getResolvedAt();
         String timestamp = dateToUse != null ? formatter.format(dateToUse) : "";
 
@@ -75,3 +71,4 @@ public class PublicServiceImpl implements PublicService {
                 .build();
     }
 }
+

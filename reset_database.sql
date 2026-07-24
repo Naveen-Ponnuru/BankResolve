@@ -5,7 +5,5 @@ TRUNCATE TABLE grievance_history;
 TRUNCATE TABLE grievances;
 TRUNCATE TABLE notifications;
 TRUNCATE TABLE users;
-TRUNCATE TABLE roles;
-TRUNCATE TABLE banks;
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -37,7 +37,6 @@ public class TopicSubscriptionInterceptor implements ChannelInterceptor {
     private final CustomUserDetailsService userDetailsService;
     private final UserRepository userRepository;
     private final MeterRegistry meterRegistry;
-    private final Counter rateLimitCounter;
     private final Counter securityViolationCounter;
     private final AuditLogger auditLogger;
 
@@ -52,7 +51,6 @@ public class TopicSubscriptionInterceptor implements ChannelInterceptor {
         this.meterRegistry = meterRegistry;
         this.auditLogger = auditLogger;
 
-        this.rateLimitCounter = Counter.builder("websocket.rate.limit.hit").register(meterRegistry);
         this.securityViolationCounter = Counter.builder("websocket.security.violations").register(meterRegistry);
     }
 
@@ -142,7 +140,7 @@ public class TopicSubscriptionInterceptor implements ChannelInterceptor {
     private void recordViolation(String reason, UserPrincipal user, String destination) {
         securityViolationCounter.increment();
         auditLogger.logSecurityViolation("WEBSOCKET_VIOLATION", 
-            user.getId(), user.getBankId(), "STOMP", destination, "REJECTED " + reason);
+            user.getId(), "STOMP", destination, "REJECTED " + reason);
         log.warn("REJECTED {}: User [{}] attempted delivery to {}", reason, user.getEmail(), destination);
     }
 

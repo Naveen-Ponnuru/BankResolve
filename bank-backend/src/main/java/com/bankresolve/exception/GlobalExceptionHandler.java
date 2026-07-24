@@ -41,29 +41,20 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), null);
     }
 
-    // ─── Bank Mismatch (Security/Isolation) ──────────────────────────────────
-    @ExceptionHandler(BankMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleBankMismatch(BankMismatchException ex) {
-        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage(), null);
-    }
-
     // ─── Access Denied ───────────────────────────────────────────────────────
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Long userId = null;
-        Long bankId = null;
 
         if (auth != null && auth.getPrincipal() instanceof UserPrincipal) {
             UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
             userId = principal.getId();
-            bankId = principal.getBankId();
         }
 
         auditLogger.logSecurityViolation(
             "ACCESS_DENIED",
             userId,
-            bankId,
             request.getMethod(),
             request.getRequestURI(),
             ex.getMessage()
@@ -75,7 +66,7 @@ public class GlobalExceptionHandler {
     // ─── Auth Failures ───────────────────────────────────────────────────────
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex) {
-        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid credentials", null);
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password.", null);
     }
 
     // ─── Validation: Method Arguments (@Valid) ───────────────────────────────

@@ -5,8 +5,7 @@
  * <ul>
  *   <li>AuthController — login, register, token refresh</li>
  *   <li>GrievanceController — CRUD for grievances</li>
- *   <li>UserController — user management (admin)</li>
- *   <li>BankController — bank configuration</li>
+ *   <li>UserController — user management (manager)</li>
  *   <li>DashboardController — stats and analytics</li>
  * </ul>
  */

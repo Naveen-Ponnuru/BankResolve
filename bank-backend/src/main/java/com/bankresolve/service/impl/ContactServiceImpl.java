@@ -10,9 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
-import com.bankresolve.entity.Bank;
-import com.bankresolve.repository.BankRepository;
-import com.bankresolve.security.BankContextUtil;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
@@ -23,36 +20,17 @@ import java.util.stream.Collectors;
 public class ContactServiceImpl implements ContactService {
 
     private final ContactRepository contactRepository;
-    private final BankRepository bankRepository;
-    private final BankContextUtil bankContextUtil;
 
     @Override
     public boolean saveContact(ContactRequestDto contactRequestDto, HttpServletRequest request) {
         Contact contact = transformToEntity(contactRequestDto);
-
-        // Deriving bank context via BankContextUtil if authenticated
-        try {
-            Long bankId = bankContextUtil.getCurrentBankId();
-            if (bankId != null) {
-                Bank bank = bankRepository.findById(bankId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Bank", "id", bankId));
-                contact.setBank(bank);
-            }
-        } catch (Exception e) {
-            // Anonymous or non-bank user; proceed without specific bank mapping
-        }
-
         contactRepository.save(contact);
         return true;
     }
 
     @Override
     public List<ContactResponseDto> getContactsByBank(HttpServletRequest request) {
-        Long bankId = bankContextUtil.getCurrentBankId();
-        return contactRepository.findByBankId(bankId)
-                .stream()
-                .map(this::mapToContactResponseDTO)
-                .collect(Collectors.toList());
+        return getAllOpenMessages();
     }
 
     @Override
@@ -66,12 +44,6 @@ public class ContactServiceImpl implements ContactService {
         Contact contact = contactRepository.findById(contactId).orElseThrow(
                 () -> new ResourceNotFoundException("Contact", "ContactID", contactId.toString())
         );
-        
-        // IDOR Prevention: Ensure staff can only update messages for their bank
-        if (contact.getBank() != null) {
-            bankContextUtil.validateBankAccess(contact.getBank().getId());
-        }
-        
         contact.setStatus(status);
         contactRepository.save(contact);
     }
@@ -94,3 +66,4 @@ public class ContactServiceImpl implements ContactService {
         return contact;
     }
 }
+

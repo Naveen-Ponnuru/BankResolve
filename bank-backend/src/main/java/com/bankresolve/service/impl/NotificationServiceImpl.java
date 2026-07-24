@@ -37,8 +37,11 @@ public class NotificationServiceImpl implements NotificationService {
             log.warn("notifyUser called with null user — skipping notification: {}", message);
             return;
         }
-        // ── Deduplication: Relies on Database Unique Constraint (user_id, reference_id, type)
-        // No pre-check here to avoid race conditions and unnecessary reads.
+        if (referenceId != null && type != null 
+                && notificationRepository.existsByUserIdAndReferenceIdAndType(user.getId(), referenceId, type)) {
+            log.debug("Notification already exists for user {}, reference {}, type {} — skipping duplicate", user.getId(), referenceId, type);
+            return;
+        }
 
         Notification notification = Notification.builder()
                 .user(user)
@@ -48,13 +51,7 @@ public class NotificationServiceImpl implements NotificationService {
                 .read(false)
                 .build();
         
-        Notification saved;
-        try {
-            saved = notificationRepository.saveAndFlush(notification);
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            log.debug("Duplicate notification constraint caught for user {}, reference {}, type {}", user.getId(), referenceId, type);
-            return;
-        }
+        Notification saved = notificationRepository.save(notification);
         
         // Phase 14: Push real-time over STOMP only AFTER successful DB commit
         final String normalizedEmail = user.getEmail().trim().toLowerCase();
@@ -83,17 +80,17 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
-    public void notifyBankRole(Long bankId, Role role, String message, String type, Long referenceId) {
-        if (bankId == null || role == null) {
-            log.warn("notifyBankRole called with null bankId={} or role={} — skipping.", bankId, role);
+    public void notifyRole(Role role, String message, String type, Long referenceId) {
+        if (role == null) {
+            log.warn("notifyRole called with null role — skipping.");
             return;
         }
-        List<User> users = userRepository.findByBankIdAndRole(bankId, role);
+        List<User> users = userRepository.findByRole(role);
         if (users.isEmpty()) {
-            log.warn("notifyBankRole: No {} users found for bankId={}. Notification NOT delivered.", role, bankId);
+            log.warn("notifyRole: No {} users found. Notification NOT delivered.", role);
             return;
         }
-        log.info("notifyBankRole: Delivering '{}' to {} {} user(s) in bank {}", message, users.size(), role, bankId);
+        log.info("notifyRole: Delivering '{}' to {} {} user(s)", message, users.size(), role);
         for (User user : users) {
             notifyUser(user, message, type, referenceId);
         }

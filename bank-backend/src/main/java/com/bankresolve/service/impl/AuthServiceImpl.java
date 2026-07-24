@@ -3,11 +3,9 @@ package com.bankresolve.service.impl;
 import com.bankresolve.dto.AuthResponseDto;
 import com.bankresolve.dto.LoginRequestDto;
 import com.bankresolve.dto.RegisterRequestDto;
-import com.bankresolve.entity.Bank;
 import com.bankresolve.entity.User;
 import com.bankresolve.entity.enums.Role;
 import com.bankresolve.exception.ResourceNotFoundException;
-import com.bankresolve.repository.BankRepository;
 import com.bankresolve.repository.UserRepository;
 import com.bankresolve.security.JwtService;
 import com.bankresolve.service.AuthService;
@@ -23,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
-    private final BankRepository bankRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -45,37 +42,8 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Mobile number already registered");
         }
 
-        // Resolve target role: PUBLIC REGISTRATION IS ALWAYS CUSTOMER
-        // STAFF/MANAGER accounts must be created by an ADMIN (Enterprise Security)
-        Role resolvedRole = Role.CUSTOMER;
-
-        // Role-aware validation for bankId
-        Long bankId = request.getBankId();
-        boolean bankRequiredForRole = resolvedRole == Role.STAFF
-                || resolvedRole == Role.MANAGER
-                || resolvedRole == Role.ADMIN;
-        if (bankRequiredForRole && bankId == null) {
-            throw new IllegalArgumentException("Bank ID is required for STAFF, MANAGER, and ADMIN users.");
-        }
-
-        if (bankId != null) {
-            // Validate against DB
-            if (!bankRepository.existsById(bankId)) {
-                throw new IllegalArgumentException("Invalid bank ID: " + bankId + ". Please select a valid bank.");
-            }
-        }
-
-        // Resolve bank by id when provided (optional for CUSTOMER)
-        Bank bank = null;
-        if (bankId != null) {
-            bank = bankRepository.findById(bankId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Bank", "id", bankId));
-        }
-
-        // Additional safety: non-customer roles must always be linked to a bank
-        if (bankRequiredForRole && bank == null) {
-            throw new IllegalStateException("Bank must not be null for STAFF, MANAGER, and ADMIN users.");
-        }
+        // Resolve target role from request, default to CUSTOMER if null
+        Role resolvedRole = request.getRole() != null ? request.getRole() : Role.CUSTOMER;
 
         // Build and persist the new user with the resolved role
         User user = User.builder()
@@ -85,13 +53,11 @@ public class AuthServiceImpl implements AuthService {
                 .phone(request.getMobileNumber())
                 .role(resolvedRole)
                 .enabled(true)
-                .bank(bank)
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        Long resolvedBankId = savedUser.getBank() != null ? savedUser.getBank().getId() : null;
-        String jwtToken = generateToken(savedUser, resolvedBankId);
+        String jwtToken = generateToken(savedUser);
         return buildAuthResponse(savedUser, jwtToken);
     }
 
@@ -115,20 +81,18 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Account is inactive. Please contact support.");
         }
 
-        Long bankId = user.getBank() != null ? user.getBank().getId() : null;
-        String jwtToken = generateToken(user, bankId);
+        String jwtToken = generateToken(user);
         return buildAuthResponse(user, jwtToken);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    private String generateToken(User user, Long bankId) {
+    private String generateToken(User user) {
         return jwtService.generateToken(
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
-                "ROLE_" + user.getRole().name(),
-                bankId
+                "ROLE_" + user.getRole().name()
         );
     }
 
@@ -138,8 +102,6 @@ public class AuthServiceImpl implements AuthService {
                 .name(user.getFullName())
                 .email(user.getEmail())
                 .role(user.getRole())
-                .bankId(user.getBank() != null ? user.getBank().getId() : null)
-                .bankName(user.getBank() != null ? user.getBank().getName() : null)
                 .build();
 
         return AuthResponseDto.builder()
@@ -147,9 +109,8 @@ public class AuthServiceImpl implements AuthService {
                 .token(token)
                 .email(user.getEmail())
                 .role(user.getRole())
-                .bankId(user.getBank() != null ? user.getBank().getId() : null)
-                .bankName(user.getBank() != null ? user.getBank().getName() : null)
                 .user(userDto)
                 .build();
     }
 }
+

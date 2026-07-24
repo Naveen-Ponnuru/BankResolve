@@ -1,0 +1,13 @@
+﻿
+> bank-ui@0.0.0 lint
+> eslint .
+
+
+C:\Bank Grievence Management System\EazyStickers\bank-grievance\bank-ui\src\hooks\useErrorLogger.js
+  22:18  error  'e' is defined but never used  no-unused-vars
+
+C:\Bank Grievence Management System\EazyStickers\bank-grievance\bank-ui\src\store\bankSlice.js
+  38:10  error  'err' is defined but never used  no-unused-vars
+
+Γ£û 2 problems (2 errors, 0 warnings)
+

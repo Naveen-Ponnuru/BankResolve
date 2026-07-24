@@ -32,13 +32,6 @@ public class RegisterRequestDto {
     @Pattern(regexp = "^$|^\\d{10,15}$", message = "Mobile number must be 10-15 digits")
     private String mobileNumber;
 
-    /**
-     * Bank ID is role-dependent:
-     *  - CUSTOMER: optional
-     *  - STAFF/MANAGER: required (validated in service layer)
-     *  - ADMIN: optional
-     */
-    private Long bankId;
 
     /**
      * Target system role for the new user.

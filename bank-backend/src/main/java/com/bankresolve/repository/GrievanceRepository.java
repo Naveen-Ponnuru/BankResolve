@@ -39,126 +39,62 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
     // ─── By Resolver ──────────────────────────────────────────────────────────
     List<Grievance> findByResolvedById(Long userId);
 
-    // ─── By Bank ──────────────────────────────────────────────────────────────
-    List<Grievance> findByBankId(Long bankId);
-
-    List<Grievance> findByBankIdAndStatus(Long bankId, GrievanceStatus status);
-    List<Grievance> findByBankIdAndFeedbackRatingIsNotNullOrderByResolvedAtDesc(Long bankId);
-
-    long countByBankId(Long bankId);
-
-    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.bank.id = :bankId AND g.status IN :statuses")
-    long countByBankIdAndStatuses(@Param("bankId") Long bankId, @Param("statuses") List<GrievanceStatus> statuses);
-
-    // ─── By Bank Id (Extended) ────────────────────────────────────────────────
-    List<Grievance> findByBankIdAndStatusIn(Long bankId, List<GrievanceStatus> statuses);
-
-    List<Grievance> findByBankIdAndPriority(Long bankId, Priority priority);
-
-    long countByBankIdAndPriority(Long bankId, Priority priority);
-
-    long countByBankIdAndStatus(Long bankId, GrievanceStatus status);
-
-    // ─── By Status / Priority ─────────────────────────────────────────────────
-    List<Grievance> findByStatusInAndTargetSlaBeforeAndIsEscalatedFalse(List<GrievanceStatus> statuses, java.time.Instant now);
-    
-    List<Grievance> findByStatusInAndSlaDeadlineBeforeAndIsEscalatedFalse(List<GrievanceStatus> statuses, java.time.LocalDateTime now);
-
     List<Grievance> findByCustomerIdAndPriority(Long customerId, Priority priority);
-    
-    // ADMIN ONLY - must be used with role check
-    List<Grievance> findByStatus(GrievanceStatus status);
 
-    // ADMIN ONLY - must be used with role check
-    List<Grievance> findByPriority(Priority priority);
-
-    // ADMIN ONLY - must be used with role check
-    long countByPriority(Priority priority);
-
-    // ADMIN ONLY - must be used with role check
-    long countByStatus(GrievanceStatus status);
-
-    // ADMIN ONLY - must be used with role check
-    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.status IN :statuses")
-    long countByStatuses(@Param("statuses") List<GrievanceStatus> statuses);
-
-    // ─── Dashboard KPIs ───────────────────────────────────────────────────────
     long countByCustomerIdAndStatus(Long customerId, GrievanceStatus status);
 
-    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.assignedStaff.id = :staffId " +
-           "AND g.status = 'FILED' AND g.targetSla < CURRENT_TIMESTAMP")
-    long countSlaBreachesByStaffId(@Param("staffId") Long staffId);
+    long countByStatus(GrievanceStatus status);
 
     @Query("SELECT new com.bankresolve.dto.StaffWorkloadDto(u.fullName, COUNT(g)) " +
            "FROM User u LEFT JOIN Grievance g ON g.assignedStaff = u " +
-           "WHERE u.bank.id = :bankId AND u.role = 'STAFF' " +
+           "WHERE u.role = 'STAFF' " +
            "GROUP BY u.id, u.fullName")
-    List<com.bankresolve.dto.StaffWorkloadDto> getStaffWorkloadByBankId(@Param("bankId") Long bankId);
+    List<com.bankresolve.dto.StaffWorkloadDto> getStaffWorkload();
 
     @Query("SELECT COALESCE(AVG(TIMESTAMPDIFF(HOUR, g.createdAt, g.resolvedAt)), 0.0) " +
-           "FROM Grievance g WHERE g.bank.id = :bankId AND g.status = 'RESOLVED'")
-    Double getAverageResolutionTimeByBankId(@Param("bankId") Long bankId);
+           "FROM Grievance g WHERE g.status = 'RESOLVED'")
+    Double getAverageResolutionTimeGlobal();
 
     @Query("SELECT COALESCE(AVG(TIMESTAMPDIFF(HOUR, g.createdAt, g.resolvedAt)), 0.0) " +
            "FROM Grievance g WHERE g.customer.id = :customerId AND g.status = 'RESOLVED'")
     Double getAverageResolutionTimeByCustomerId(@Param("customerId") Long customerId);
 
-    // ADMIN ONLY - must be used with role check
-    @Query("SELECT COALESCE(AVG(TIMESTAMPDIFF(HOUR, g.createdAt, g.resolvedAt)), 0.0) " +
-           "FROM Grievance g WHERE g.status = 'RESOLVED'")
-    Double getAverageResolutionTimeGlobal();
-
     @Query("SELECT COUNT(g) FROM Grievance g WHERE g.assignedStaff.id = :staffId AND g.status IN :statuses")
     long countByStaffAndStatuses(@Param("staffId") Long staffId,
                                  @Param("statuses") List<GrievanceStatus> statuses);
 
-    // ─── Escalated (for Manager) ──────────────────────────────────────────────
-    List<Grievance> findByBankIdAndStatusOrderByCreatedAtDesc(Long bankId, GrievanceStatus status);
-
     // ─── Unassigned ───────────────────────────────────────────────────────────
-    List<Grievance> findByAssignedStaffIsNullAndBankId(Long bankId);
+    List<Grievance> findByAssignedStaffIsNull();
 
-    // ─── Bank-Scoped Safe Lookups (IDOR Prevention) ──────────────────────────
-    Optional<Grievance> findByIdAndBankId(Long id, Long bankId);
-
+    // ─── Customer-Scoped Safe Lookups (IDOR Prevention) ──────────────────────
     Optional<Grievance> findByIdAndCustomerId(Long id, Long customerId);
 
-    List<Grievance> findByCustomerIdAndBankId(Long customerId, Long bankId);
-
-    List<Grievance> findByAssignedStaffIdAndBankId(Long staffId, Long bankId);
     // ─── Manager Scoped Queries (Restriction: HIGH or ESCALATED) ──────────────
-    @Query("SELECT g FROM Grievance g WHERE g.bank.id = :bankId AND (g.priority = 'HIGH' OR g.status = 'ESCALATED')")
-    List<Grievance> findManagerScopedGrievances(@Param("bankId") Long bankId);
+    @Query("SELECT g FROM Grievance g WHERE g.priority = 'HIGH' OR g.status = 'ESCALATED'")
+    List<Grievance> findManagerScopedGrievances();
 
-    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.bank.id = :bankId AND (g.priority = 'HIGH' OR g.status = 'ESCALATED')")
-    long countManagerScopedTotal(@Param("bankId") Long bankId);
+    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.priority = 'HIGH' OR g.status = 'ESCALATED'")
+    long countManagerScopedTotal();
 
-    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.bank.id = :bankId AND (g.priority = 'HIGH' OR g.status = 'ESCALATED') AND g.status IN :statuses")
-    long countManagerScopedByStatuses(@Param("bankId") Long bankId, @Param("statuses") List<GrievanceStatus> statuses);
+    @Query("SELECT COUNT(g) FROM Grievance g WHERE (g.priority = 'HIGH' OR g.status = 'ESCALATED') AND g.status IN :statuses")
+    long countManagerScopedByStatuses(@Param("statuses") List<GrievanceStatus> statuses);
 
-    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.bank.id = :bankId AND (g.priority = 'HIGH' OR g.status = 'ESCALATED') AND g.status = :status")
-    long countManagerScopedByStatus(@Param("bankId") Long bankId, @Param("status") GrievanceStatus status);
+    @Query("SELECT COUNT(g) FROM Grievance g WHERE (g.priority = 'HIGH' OR g.status = 'ESCALATED') AND g.status = :status")
+    long countManagerScopedByStatus(@Param("status") GrievanceStatus status);
 
     @Query(value = "SELECT DATE_FORMAT(created_at, '%b') as month, COUNT(*) as count " +
-                   "FROM grievances WHERE bank_id = :bankId AND (priority = 'HIGH' OR status = 'ESCALATED') " +
+                   "FROM grievances WHERE (priority = 'HIGH' OR status = 'ESCALATED') " +
                    "AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) " +
                    "GROUP BY month, YEAR(created_at), MONTH(created_at) " +
                    "ORDER BY YEAR(created_at) ASC, MONTH(created_at) ASC", nativeQuery = true)
-    List<Object[]> getManagerMonthlyTrend(@Param("bankId") Long bankId);
+    List<Object[]> getManagerMonthlyTrend();
 
     // ─── Monthly Trends ──────────────────────────────────────────────────────
-    // ADMIN ONLY - must be used with role check
     @Query(value = "SELECT DATE_FORMAT(created_at, '%b') as month, COUNT(*) as count " +
                    "FROM grievances WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) " +
                    "GROUP BY month, YEAR(created_at), MONTH(created_at) " +
                    "ORDER BY YEAR(created_at) ASC, MONTH(created_at) ASC", nativeQuery = true)
     List<Object[]> getGlobalMonthlyTrend();
-
-    @Query(value = "SELECT DATE_FORMAT(created_at, '%b') as month, COUNT(*) as count " +
-                   "FROM grievances WHERE bank_id = :bankId AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) " +
-                   "GROUP BY month, YEAR(created_at), MONTH(created_at) " +
-                   "ORDER BY YEAR(created_at) ASC, MONTH(created_at) ASC", nativeQuery = true)
-    List<Object[]> getBankMonthlyTrend(@Param("bankId") Long bankId);
 
     @Query(value = "SELECT DATE_FORMAT(created_at, '%b') as month, COUNT(*) as count " +
                    "FROM grievances WHERE customer_id = :customerId AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) " +
@@ -167,12 +103,13 @@ public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
     List<Object[]> getCustomerMonthlyTrend(@Param("customerId") Long customerId);
 
     // ─── Feedback Queries ────────────────────────────────────────────────────
-    List<Grievance> findTop5ByBankIdAndFeedbackRatingIsNotNullOrderByResolvedAtDesc(Long bankId);
-
-    @Query("SELECT g FROM Grievance g WHERE g.bank.id = :bankId AND g.feedbackRating IS NOT NULL ORDER BY g.resolvedAt DESC")
-    List<Grievance> findRecentFeedbackByBankId(@Param("bankId") Long bankId);
-
-    // ADMIN ONLY - must be used with role check
     @Query("SELECT g FROM Grievance g WHERE g.feedbackRating IS NOT NULL ORDER BY g.resolvedAt DESC")
     List<Grievance> findRecentFeedbackGlobal();
+
+    @Query("SELECT g FROM Grievance g WHERE g.feedbackRating IS NOT NULL AND (g.resolvedRole = :role OR g.resolvedBy.id = :userId) ORDER BY g.feedbackAt DESC")
+    List<Grievance> findRecentFeedbackByResolver(@Param("role") com.bankresolve.entity.enums.Role role, @Param("userId") Long userId);
+
+    @Query("SELECT COUNT(g) FROM Grievance g WHERE g.resolvedRole = :role")
+    long countByResolvedRole(@Param("role") com.bankresolve.entity.enums.Role role);
 }
+

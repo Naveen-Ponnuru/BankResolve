@@ -28,7 +28,10 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
     const status = error.response.status;
-    if (status === 401) {
+    const url = error.config?.url || "";
+
+    // 🛑 DO NOT trigger session expiration redirect or global toast on login/register endpoints
+    if (status === 401 && !url.includes("/auth/login") && !url.includes("/auth/register")) {
       toast.error("Session expired. Please log in again.");
       localStorage.removeItem("token");
       localStorage.removeItem("user");

@@ -34,7 +34,7 @@ export const useErrorLogger = () => {
 
     }, []);
 
-    return { logError };
+    return { logError};
 };
 
 export default useErrorLogger;

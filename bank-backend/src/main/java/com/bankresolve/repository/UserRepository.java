@@ -16,20 +16,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     boolean existsByPhone(String phone);
-
-    long countByBankId(Long bankId);
-
-    // ADMIN ONLY - must be used with role check
     List<User> findByRole(Role role);
 
-    List<User> findByBankIdAndRole(Long bankId, Role role);
-
-    List<User> findByBankId(Long bankId);
-
-    // ADMIN ONLY - must be used with role check
+    // MANAGER ONLY - must be used with role check
     long countByRole(Role role);
 
-    // ADMIN ONLY - must be used with role check
+    // MANAGER ONLY - must be used with role check
     long countByEnabledTrue();
 
 

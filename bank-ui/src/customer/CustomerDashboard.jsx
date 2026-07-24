@@ -36,30 +36,26 @@ const CustomerDashboard = () => {
         </Link>
       </div>
 
-      {/* ─── Bank Context Card ─── */}
-      {(user?.bankName || selectedBank) && (
-        <div className="flex items-center space-x-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl border border-blue-200 dark:border-blue-800">
-          <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-            <FontAwesomeIcon icon={faBuilding} className="text-white text-lg" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-blue-900 dark:text-blue-100">
-              {user?.bankName || selectedBank?.name}
-            </h3>
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              Bank ID: {user?.bankId || selectedBank?.id} ·{" "}
-              {selectedBank?.branchCount?.toLocaleString() || "N/A"} Branches ·
-              RBI Compliant
-            </p>
-          </div>
-          <div className="hidden sm:flex items-center space-x-1 px-3 py-1 bg-green-100 dark:bg-green-900/40 rounded-full">
-            <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span className="text-xs font-semibold text-green-700 dark:text-green-300">
-              Active
-            </span>
-          </div>
+      {/* ─── SecureBank Info Card ─── */}
+      <div className="flex items-center space-x-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl border border-blue-200 dark:border-blue-800">
+        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+          <FontAwesomeIcon icon={faBuilding} className="text-white text-lg" />
         </div>
-      )}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-blue-900 dark:text-blue-100">
+            SecureBank Grievance System
+          </h3>
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            Official Grievance Redressal Portal · RBI Compliant
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center space-x-1 px-3 py-1 bg-green-100 dark:bg-green-900/40 rounded-full">
+          <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+          <span className="text-xs font-semibold text-green-700 dark:text-green-300">
+            Active
+          </span>
+        </div>
+      </div>
 
       {/* ─── Unified Dashboard Overview (Metrics, Charts, Filters, Table) ─── */}
       <DashboardOverview />

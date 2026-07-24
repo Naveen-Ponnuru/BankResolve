@@ -1,7 +1,6 @@
 import React from "react";
 import { Outlet, NavLink } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { selectBank } from "../store/bankSlice";
+import { BANK_NAME } from "../constants/appConstants";
 
 /**
  * PublicLayout — wraps public pages (Home, About, Contact).
@@ -10,8 +9,6 @@ import { selectBank } from "../store/bankSlice";
  * so this layout must NOT add a second navbar.
  */
 const PublicLayout = () => {
-  const selectedBank = useSelector(selectBank);
-
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-200 flex flex-col">
       {/* ============ CONTENT ============ */}
@@ -29,15 +26,13 @@ const PublicLayout = () => {
                 <span>BankResolve</span>
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Enterprise bank grievance management system trusted by leading banks.
+                Official grievance management system for {BANK_NAME}.
               </p>
-              {selectedBank && (
-                <div className="mt-3 inline-flex items-center space-x-1.5 px-2.5 py-1 bg-blue-100 dark:bg-blue-900/50 rounded-full">
-                  <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
-                    {selectedBank.name}
-                  </span>
-                </div>
-              )}
+              <div className="mt-3 inline-flex items-center space-x-1.5 px-2.5 py-1 bg-blue-100 dark:bg-blue-900/50 rounded-full">
+                <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+                  {BANK_NAME}
+                </span>
+              </div>
             </div>
             <div>
               <h4 className="font-semibold mb-4 text-gray-900 dark:text-white">Product</h4>

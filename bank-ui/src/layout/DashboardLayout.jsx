@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { selectUser } from "../store/auth-slice";
-import { selectBank } from "../store/bankSlice";
+import { BANK_NAME, BANK_CODE } from "../constants/appConstants";
 import { ROLES } from "../constants/roles";
 import { normalizeRole } from "../utils/roleUtils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -10,7 +10,6 @@ import {
   faChartPie,
   faFilePen,
   faListCheck,
-  faUsersCog,
   faTimes,
   faBuilding,
 } from "@fortawesome/free-solid-svg-icons";
@@ -18,7 +17,6 @@ import {
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const user = useSelector(selectUser);
-  const selectedBank = useSelector(selectBank);
   const location = useLocation();
 
   // Normalize role from either user.role or user.roles[]
@@ -59,8 +57,6 @@ const DashboardLayout = () => {
 
   const getRoleBadgeColor = (r) => {
     switch (r) {
-      case "ADMIN":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300";
       case "MANAGER":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300";
       case "STAFF":
@@ -115,24 +111,6 @@ const DashboardLayout = () => {
             name: "Reports",
             href: "/manager/dashboard",
             icon: faFilePen,
-          },
-        ];
-      case ROLES.ADMIN:
-        return [
-          {
-            name: "Admin Dashboard",
-            href: "/admin/dashboard",
-            icon: faChartPie,
-          },
-          {
-            name: "User Management",
-            href: "/admin/dashboard",
-            icon: faUsersCog,
-          },
-          {
-            name: "System Config",
-            href: "/admin/dashboard",
-            icon: faListCheck,
           },
         ];
       default:
@@ -209,24 +187,22 @@ const DashboardLayout = () => {
         </nav>
 
         {/* Sidebar Footer — Bank Context */}
-        {selectedBank && (
-          <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
-            <div className="flex items-center space-x-2 px-3 py-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800">
-              <FontAwesomeIcon
-                icon={faBuilding}
-                className="text-blue-600 dark:text-blue-400 text-sm flex-shrink-0"
-              />
-              <div className="min-w-0">
-                <p className="text-xs text-blue-700 dark:text-blue-300 font-semibold truncate">
-                  {selectedBank.name}
-                </p>
-                <p className="text-xs text-blue-500 dark:text-blue-400">
-                  Code: {selectedBank.code}
-                </p>
-              </div>
+        <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
+          <div className="flex items-center space-x-2 px-3 py-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800">
+            <FontAwesomeIcon
+              icon={faBuilding}
+              className="text-blue-600 dark:text-blue-400 text-sm flex-shrink-0"
+            />
+            <div className="min-w-0">
+              <p className="text-xs text-blue-700 dark:text-blue-300 font-semibold truncate">
+                {BANK_NAME}
+              </p>
+              <p className="text-xs text-blue-500 dark:text-blue-400">
+                Code: {BANK_CODE}
+              </p>
             </div>
           </div>
-        )}
+        </div>
       </aside>
 
       {/* =========== MAIN CONTENT =========== */}

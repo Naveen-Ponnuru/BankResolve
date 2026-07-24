@@ -7,6 +7,5 @@ package com.bankresolve.entity.enums;
 public enum Role {
     CUSTOMER,
     STAFF,
-    MANAGER,
-    ADMIN
+    MANAGER
 }

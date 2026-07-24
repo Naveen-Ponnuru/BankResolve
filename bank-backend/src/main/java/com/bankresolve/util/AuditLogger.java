@@ -11,13 +11,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuditLogger {
 
-    public void logSecurityViolation(String type, Long userId, Long bankId, String method, String endpoint, String message) {
-        log.warn("SECURITY_ALERT type={} userId={} bankId={} method={} endpoint={} message=\"{}\"",
+    public void logSecurityViolation(String type, Long userId, String method, String endpoint, String message) {
+        log.warn("SECURITY_ALERT type={} userId={} method={} endpoint={} message=\"{}\"",
                 type, 
                 userId != null ? userId : "anonymous",
-                bankId != null ? bankId : "none",
                 method != null ? method : "N/A",
                 endpoint != null ? endpoint : "N/A",
                 message);
     }
 }
+

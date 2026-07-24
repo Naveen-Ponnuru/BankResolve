@@ -31,9 +31,4 @@ public class Contact extends BaseEntity {
 
     @Column(name = "status", nullable = false, length = 50)
     private String status;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "bank_id")
-    private Bank bank;
-
 }

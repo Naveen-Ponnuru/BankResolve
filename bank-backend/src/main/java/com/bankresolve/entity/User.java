@@ -49,13 +49,4 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private Boolean enabled = true;
-
-
-
-    // ─── Relationships ────────────────────────────────────────────────────────
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "bank_id", nullable = false,
-                foreignKey = @ForeignKey(name = "fk_user_bank"))
-    private Bank bank;
 }

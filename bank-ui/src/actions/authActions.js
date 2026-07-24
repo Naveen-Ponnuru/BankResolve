@@ -8,7 +8,6 @@ export async function loginAction({ request }) {
     const loginData = {
         email: data.get("email"),
         password: data.get("password"),
-        bankId: data.get("bankId"),
     };
 
     const errors = {};
@@ -22,22 +21,16 @@ export async function loginAction({ request }) {
     try {
         const response = await authService.login(
             loginData.email,
-            loginData.password,
-            loginData.bankId
+            loginData.password
         );
-        const { user, jwtToken, bankId, bankName } = response;
-        return { success: true, user, jwtToken, bankId, bankName };
+        const { user, jwtToken } = response;
+        return { success: true, user, jwtToken };
     } catch (error) {
-        if (error.response?.status === 401) {
-            return {
-                success: false,
-                errors: { message: "Invalid email or password" },
-            };
-        }
-        throw new Response(
-            error.response?.data?.message || error.message || "Failed to login.",
-            { status: error.response?.status || 500 },
-        );
+        console.error("Login attempt failed:", error?.response?.data || error?.message);
+        return {
+            success: false,
+            errors: { message: "Invalid email or password." },
+        };
     }
 }
 
@@ -55,27 +48,18 @@ export async function registerAction({ request }) {
     if (!data.password) errors.password = "Password is required";
 
     const role = data.role || "CUSTOMER";
-    let bankId = data.bankId;
-    if (!bankId && data.bankIdFromContext) {
-        bankId = data.bankIdFromContext;
-    }
-
-    if (role !== "CUSTOMER" && role !== "ADMIN" && !bankId) {
-        errors.bankId = "Bank association is required for staff/managers";
-    }
 
     if (Object.keys(errors).length > 0) {
         return { success: false, errors };
     }
 
     try {
-        // Backend expects: { name, email, password, mobileNumber, bankId, role }
+        // Backend expects: { name, email, password, mobileNumber, role }
         const registrationPayload = {
             name: data.name,
             email: data.email,
             password: data.password,
             mobileNumber: data.phone, // UI sends 'phone', backend expects 'mobileNumber'
-            bankId: bankId,
             role: role
         };
 
@@ -88,3 +72,4 @@ export async function registerAction({ request }) {
         };
     }
 }
+

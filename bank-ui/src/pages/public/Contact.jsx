@@ -6,50 +6,19 @@ import {
   faCheckCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-toastify";
-import { useSelector } from "react-redux";
-import { selectBank } from "../../store/bankSlice";
-import { selectIsAuthenticated, selectUser } from "../../store/auth-slice";
+import { BANK_NAME } from "../../constants/appConstants";
 import apiClient from "../../api/apiClient";
 
-// ─── Bank-specific contact configuration ──────────────────────────────────────
 const BANK_CONTACT_CONFIG = {
-  "SBI": {
-    email: "sbi@bankresolve.com",
-    phone: "1800-11-2211",
-    supportHours: "24x7 (Toll Free)",
-    tagline: "SBI Customer Care — Always at Your Service",
-  },
-  "HDFC Bank": {
-    email: "hdfc@bankresolve.com",
-    phone: "1800-202-6161",
-    supportHours: "Mon–Sat, 8 AM – 8 PM",
-    tagline: "HDFC Bank Support — We Value Your Time",
-  },
-  "ICICI Bank": {
-    email: "icici@bankresolve.com",
-    phone: "1800-200-3344",
-    supportHours: "24x7 (Toll Free)",
-    tagline: "ICICI Bank Helpdesk — Fast, Transparent, Resolved",
-  },
-  "default": {
-    email: "support@bankresolve.com",
-    phone: "1800-123-4567",
-    supportHours: "24x7 (Toll Free)",
-    tagline: "BankResolve Support — Here to Help",
-  }
+  email: "support@bankresolve.com",
+  phone: "1800-123-4567",
+  supportHours: "24x7 (Toll Free)",
+  tagline: "SecureBank Support — Fast, Transparent, Resolved",
 };
 
 const Contact = () => {
-  const selectedBank = useSelector(selectBank);
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const reduxUser = useSelector(selectUser);
-
-  // Strict isolation: use authenticated user's bank when logged in
-  const activeBankName = isAuthenticated && reduxUser?.bankName
-    ? reduxUser.bankName
-    : (selectedBank?.name || "BankResolve");
-
-  const contactInfo = BANK_CONTACT_CONFIG[activeBankName] || BANK_CONTACT_CONFIG["default"];
+  const activeBankName = BANK_NAME;
+  const contactInfo = BANK_CONTACT_CONFIG;
 
   const [formData, setFormData] = useState({
     name: "",

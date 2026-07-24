@@ -12,7 +12,7 @@ public interface NotificationService {
 
     void notifyUser(User user, String message, String type, Long referenceId);
 
-    void notifyBankRole(Long bankId, Role role, String message, String type, Long referenceId);
+    void notifyRole(Role role, String message, String type, Long referenceId);
 
     List<NotificationDto> getUserNotifications(Long userId, boolean unreadOnly);
 

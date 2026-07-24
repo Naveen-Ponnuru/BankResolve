@@ -139,11 +139,8 @@ const grievanceService = {
         return response.data;
     },
 
-    getPublicStats: async (bankId) => {
-        // Use a standard axios call without the auth interceptor for public endpoints
-        // since the user may not be logged in to access the auth token context correctly.
-        // Actually, our api instance handles no-token requests fine if it's not strictly required.
-        const response = await apiClient.get(`/public/stats/${bankId}`);
+    getPublicStats: async () => {
+        const response = await apiClient.get("/public/stats");
         return response.data;
     },
 

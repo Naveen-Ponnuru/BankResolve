@@ -32,11 +32,10 @@ import lombok.RequiredArgsConstructor;
  *
  * <pre>
  *   /api/auth/**      → permitAll
- *   /api/banks/**     → permitAll  (registration dropdown)
- *   /api/admin/**     → ROLE_ADMIN
- *   /api/manager/**   → ROLE_MANAGER, ROLE_ADMIN
- *   /api/staff/**     → ROLE_STAFF, ROLE_MANAGER, ROLE_ADMIN
- *   /api/customer/**  → ROLE_CUSTOMER, ROLE_STAFF, ROLE_MANAGER, ROLE_ADMIN
+ *   /api/users/**     → ROLE_MANAGER
+ *   /api/manager/**   → ROLE_MANAGER
+ *   /api/staff/**     → ROLE_STAFF
+ *   /api/customer/**  → ROLE_CUSTOMER
  *   everything else   → authenticated
  * </pre>
  */
@@ -61,8 +60,7 @@ public class SecurityConfig {
                     auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
                     // ─── Public endpoints ─────────────────────────────────
-                    auth.requestMatchers("/api/auth/**").permitAll();
-                    auth.requestMatchers("/api/banks", "/api/banks/**").permitAll();
+                    auth.requestMatchers("/api/auth/**", "/api/public/**").permitAll();
                     auth.requestMatchers("/api/contacts", "/api/contacts/**").permitAll();
                     auth.requestMatchers("/ws/**").permitAll();
                     auth.requestMatchers("/actuator/health").permitAll();
@@ -70,13 +68,13 @@ public class SecurityConfig {
                             "/v3/api-docs/**").permitAll();
 
                         // ─── Role-based access ────────────────────────────────
-                        auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
+                        auth.requestMatchers("/api/users/**").hasRole("MANAGER");
                         auth.requestMatchers("/api/manager/**").hasRole("MANAGER");
                         auth.requestMatchers("/api/staff/**").hasRole("STAFF");
                         auth.requestMatchers("/api/customer/**").hasRole("CUSTOMER");
 
                         // ─── Customer endpoints ───────────────────────────────
-                        auth.requestMatchers("/api/dashboard-summary").hasAnyRole("CUSTOMER", "STAFF", "MANAGER", "ADMIN");
+                        auth.requestMatchers("/api/dashboard-summary").hasAnyRole("CUSTOMER", "STAFF", "MANAGER");
                         auth.requestMatchers("/api/grievances/my").hasRole("CUSTOMER");
                         auth.requestMatchers("/api/customer/grievances").hasRole("CUSTOMER");
 
@@ -88,14 +86,13 @@ public class SecurityConfig {
 
 
                         // ─── Dashboard endpoints ────────────────────────────
-                        auth.requestMatchers("/api/dashboard-summary").hasAnyRole("CUSTOMER","STAFF","MANAGER","ADMIN");
                         auth.requestMatchers("/api/grievances", 
                             "/api/grievances/dashboard-summary", 
-                            "/api/grievances/monthly-trend").hasAnyRole("CUSTOMER","STAFF","MANAGER","ADMIN");
+                            "/api/grievances/monthly-trend").hasAnyRole("CUSTOMER","STAFF","MANAGER");
 
                         // Keep generic grievances access for existing controllers
                         auth.requestMatchers("/api/grievances/**")
-                            .hasAnyRole("CUSTOMER", "STAFF", "MANAGER", "ADMIN");
+                            .hasAnyRole("CUSTOMER", "STAFF", "MANAGER");
 
                         auth.requestMatchers("/api/notifications/**").authenticated();
 

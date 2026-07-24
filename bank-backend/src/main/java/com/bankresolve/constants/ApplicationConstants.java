@@ -33,5 +33,4 @@ public final class ApplicationConstants {
     public static final String ROLE_CUSTOMER        = "ROLE_CUSTOMER";
     public static final String ROLE_STAFF           = "ROLE_STAFF";
     public static final String ROLE_MANAGER         = "ROLE_MANAGER";
-    public static final String ROLE_ADMIN           = "ROLE_ADMIN";
 }

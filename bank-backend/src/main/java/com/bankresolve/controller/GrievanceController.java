@@ -1,9 +1,6 @@
 package com.bankresolve.controller;
 
-import com.bankresolve.dto.GrievanceFeedbackDto;
-import com.bankresolve.dto.GrievanceRequestDto;
-import com.bankresolve.dto.GrievanceResponseDto;
-import com.bankresolve.dto.GrievanceSummaryDto;
+import com.bankresolve.dto.*;
 import com.bankresolve.entity.enums.GrievanceStatus;
 import com.bankresolve.entity.enums.Priority;
 import com.bankresolve.service.GrievanceService;
@@ -41,7 +38,7 @@ public class GrievanceController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER')")
     @Operation(summary = "List grievances", 
                description = "Returns a list of grievances based on the user's role and bank association. Supports status and priority filters.")
     public ResponseEntity<List<GrievanceResponseDto>> listGrievances(
@@ -52,7 +49,7 @@ public class GrievanceController {
     }
 
     @GetMapping("/paged")
-    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER')")
     @Operation(summary = "List grievances (Paginated)", 
                description = "Returns a paginated list of grievances based on role and bank residency.")
     public ResponseEntity<Page<GrievanceResponseDto>> listGrievancesPaged(
@@ -75,7 +72,7 @@ public class GrievanceController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER')")
     @Operation(summary = "Get grievance by ID", 
                description = "Returns detailed grievance info if the user has residency permission.")
     public ResponseEntity<GrievanceResponseDto> getGrievanceById(@PathVariable Long id, Principal principal) {
@@ -91,7 +88,7 @@ public class GrievanceController {
     }
 
     @PutMapping("/{id}/resolve")
-    @PreAuthorize("hasAnyRole('STAFF', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'MANAGER')")
     @Operation(summary = "Resolve grievance", 
                description = "Marks grievance as RESOLVED. Staff can resolve NORMAL, Managers can resolve HIGH.")
     public ResponseEntity<GrievanceResponseDto> resolveGrievance(@PathVariable Long id, Principal principal) {
@@ -99,20 +96,20 @@ public class GrievanceController {
     }
 
     @GetMapping("/dashboard-summary")
-    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER')")
     @Operation(summary = "Get dashboard summary counts", 
                description = "Returns total, pending, resolved, and highRisk counts filtered by user role and bank residency.")
-    public ResponseEntity<com.bankresolve.dto.GrievanceSummaryDto> getDashboardSummary(Principal principal) {
+    public ResponseEntity<GrievanceSummaryDto> getDashboardSummary(Principal principal) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noCache().mustRevalidate())
                 .body(grievanceService.getDashboardSummary(principal.getName()));
     }
 
     @GetMapping("/monthly-trend")
-    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER')")
     @Operation(summary = "Get monthly grievance trend", 
                description = "Returns a list of monthly counts for the last 6 months, scoped by user role and residency.")
-    public ResponseEntity<List<com.bankresolve.dto.MonthlyTrendDto>> getMonthlyTrend(Principal principal) {
+    public ResponseEntity<List<MonthlyTrendDto>> getMonthlyTrend(Principal principal) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noCache().mustRevalidate())
                 .body(grievanceService.getMonthlyTrend(principal.getName()));
@@ -126,18 +123,18 @@ public class GrievanceController {
         return ResponseEntity.ok(grievanceService.submitFeedback(id, feedback, principal.getName()));
     }
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('STAFF', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'MANAGER')")
     @Operation(summary = "Update grievance status", 
                description = "Updates the status of a grievance. Role-based validation applies.")
     public ResponseEntity<GrievanceResponseDto> updateStatus(
             @PathVariable Long id, 
-            @Valid @RequestBody com.bankresolve.dto.UpdateStatusRequestDto request, 
+            @Valid @RequestBody UpdateStatusRequestDto request, 
             Principal principal) {
         return ResponseEntity.ok(grievanceService.updateStatus(id, request.getStatus(), principal.getName()));
     }
 
     @GetMapping("/feedback")
-    @PreAuthorize("hasAnyRole('STAFF', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'MANAGER')")
     @Operation(summary = "Get recent customer feedback", description = "Returns a list of grievances with ratings and comments, filtered by bank.")
     public ResponseEntity<List<GrievanceResponseDto>> getRecentFeedback(Principal principal) {
         return ResponseEntity.ok(grievanceService.getRecentFeedback(principal.getName()));
@@ -152,10 +149,10 @@ public class GrievanceController {
     }
 
     @GetMapping("/{id}/history")
-    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'MANAGER')")
     @Operation(summary = "Get grievance history", 
                description = "Returns a timeline of status changes for a specific grievance.")
-    public ResponseEntity<List<com.bankresolve.dto.GrievanceHistoryDto>> getGrievanceHistory(@PathVariable Long id, Principal principal) {
+    public ResponseEntity<List<GrievanceHistoryDto>> getGrievanceHistory(@PathVariable Long id, Principal principal) {
         return ResponseEntity.ok(grievanceService.getGrievanceHistory(id, principal.getName()));
     }
 

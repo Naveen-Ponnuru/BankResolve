@@ -12,8 +12,6 @@ const safeSet = (key, value) => {
   }
 };
 
-// safeRemove was unused
-
 const safeParse = (key) => {
   try {
     const raw = localStorage.getItem(key);
@@ -30,13 +28,9 @@ const parsedUser = safeParse("user");
 const initialAuthState = {
   jwtToken: token,
   user: parsedUser,
-  bankId: parsedUser?.bankId || null,
-  bankName: parsedUser?.bankName || null,
   isAuthenticated: !!token && !!parsedUser,
   isInitialized: false, // Hydration guard
 };
-
-// ... console.log stays roughly the same ...
 
 // ─── Slice ──────────────────────────────────────────────────────────────────
 const authSlice = createSlice({
@@ -44,11 +38,9 @@ const authSlice = createSlice({
   initialState: initialAuthState,
   reducers: {
     loginSuccess(state, action) {
-      const { jwtToken, user, bankId, bankName } = action.payload;
+      const { jwtToken, user } = action.payload;
       state.jwtToken = jwtToken;
       state.user = user;
-      state.bankId = bankId || user?.bankId || null;
-      state.bankName = bankName || user?.bankName || null;
       state.isAuthenticated = true;
 
       localStorage.setItem("jwtToken", jwtToken);
@@ -60,8 +52,6 @@ const authSlice = createSlice({
     logout(state) {
       state.jwtToken = null;
       state.user = null;
-      state.bankId = null;
-      state.bankName = null;
       state.isAuthenticated = false;
 
       localStorage.removeItem("jwtToken");
@@ -88,3 +78,4 @@ export const selectJwtToken = (state) => state.auth.jwtToken;
 export const selectUser = (state) => state.auth.user;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectIsInitialized = (state) => state.auth.isInitialized;
+

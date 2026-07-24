@@ -2,14 +2,12 @@ import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { selectIsAuthenticated, selectUser, logout } from "../store/auth-slice";
-import { selectBank, selectAvailableBanks, setBank } from "../store/bankSlice";
 import { normalizeRole } from "../utils/roleUtils";
 import useTheme from "../hooks/useTheme";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSun,
   faMoon,
-  faChevronDown,
   faBars,
   faTimes,
 } from "@fortawesome/free-solid-svg-icons";
@@ -28,11 +26,6 @@ const Header = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const reduxUser = useSelector(selectUser);
 
-  // ─── Bank ────────────────────────────────────────────────────────────────
-  const selectedBank = useSelector(selectBank);
-  const banks = useSelector(selectAvailableBanks);
-  const [bankDropdownOpen, setBankDropdownOpen] = useState(false);
-
   // ─── Theme ───────────────────────────────────────────────────────────────
   const { isDark, toggleTheme } = useTheme();
 
@@ -43,20 +36,9 @@ const Header = () => {
   const role = reduxUser ? normalizeRole(reduxUser.role) : null;
   const roleLabel = role || "";
 
-  // ─── Handlers ────────────────────────────────────────────────────────────
-  const handleBankSelect = (bank) => {
-    dispatch(setBank(bank));
-    setBankDropdownOpen(false);
-  };
-
-  const authenticatedBankName = reduxUser?.bankName || reduxUser?.bank?.name || selectedBank?.name;
-  // Move logging to useEffect to avoid React render errors
   React.useEffect(() => {
-    if (isAuthenticated && reduxUser) {
-      console.log("Authenticated Bank:", reduxUser.bankName);
-    }
     console.log("Header Auth State:", isAuthenticated);
-  }, [isAuthenticated, reduxUser]);
+  }, [isAuthenticated]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -98,8 +80,7 @@ const Header = () => {
                   to={
                     role === "MANAGER" ? "/manager/dashboard" :
                       role === "STAFF" ? "/staff/dashboard" :
-                        role === "ADMIN" ? "/admin/dashboard" :
-                          "/customer/dashboard"
+                        "/customer/dashboard"
                   }
                   className={navLinkClass}
                 >
@@ -115,52 +96,7 @@ const Header = () => {
           {/* ── Right slot: bank + actions + auth ───────────────────────────── */}
           <div className="flex items-center space-x-2 sm:space-x-3">
 
-            {/* Desktop Only: Bank Selector / Info */}
-            <div className="hidden md:flex items-center">
-              {!isAuthenticated ? (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setBankDropdownOpen((o) => !o)}
-                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-gray-600 border border-blue-200 dark:border-gray-600 transition"
-                    aria-label="Select bank"
-                  >
-                    <span className="text-sm">🏦</span>
-                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 max-w-[120px] truncate">
-                      {selectedBank?.name ?? "Select Bank"}
-                    </span>
-                    <FontAwesomeIcon
-                      icon={faChevronDown}
-                      className={`text-xs text-blue-600 dark:text-blue-400 transition-transform duration-200 ${bankDropdownOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                  {bankDropdownOpen && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setBankDropdownOpen(false)} />
-                      <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
-                        {banks.map((bank) => (
-                          <button
-                            key={bank.id}
-                            type="button"
-                            onClick={() => handleBankSelect(bank)}
-                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-gray-700 transition ${selectedBank?.id === bank.id ? "bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold" : "text-gray-700 dark:text-gray-200"}`}
-                          >
-                            {bank.name}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-gray-700 border border-blue-200 dark:border-gray-600 opacity-90" title="Your Bank">
-                  <span className="text-sm">🏦</span>
-                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 max-w-[180px] truncate">
-                    {authenticatedBankName || "Bank"}
-                  </span>
-                </div>
-              )}
-            </div>
+
 
             {/* SHARED ACTIONS: Single Mount Point (Phase 6) */}
             <div className="flex items-center space-x-1.5 sm:space-x-2">
@@ -216,8 +152,7 @@ const Header = () => {
                 label: "My Dashboard",
                 path: role === "MANAGER" ? "/manager/dashboard" :
                   role === "STAFF" ? "/staff/dashboard" :
-                    role === "ADMIN" ? "/admin/dashboard" :
-                      "/customer/dashboard",
+                    "/customer/dashboard",
                 show: isAuthenticated
               },
             ]
@@ -237,42 +172,7 @@ const Header = () => {
                 </NavLink>
               ))}
 
-            {/* Bank Selector (mobile) */}
-            {!isAuthenticated ? (
-              <div className="px-4 py-2">
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                  Select Bank
-                </p>
-                <div className="space-y-1">
-                  {banks.map((bank) => (
-                    <button
-                      key={bank.id}
-                      type="button"
-                      onClick={() => {
-                        handleBankSelect(bank);
-                        setMobileOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${selectedBank?.id === bank.id
-                        ? "bg-blue-600 text-white font-semibold"
-                        : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
-                        }`}
-                    >
-                      {bank.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="px-4 py-2">
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                  Your Bank
-                </p>
-                <div className="w-full text-left px-3 py-2.5 rounded-lg text-sm bg-blue-50 dark:bg-gray-700 text-blue-700 dark:text-blue-300 font-semibold border border-blue-100 dark:border-gray-600 cursor-default flex items-center space-x-2">
-                  <span>🏦</span>
-                  <span className="truncate">{authenticatedBankName || "Bank"}</span>
-                </div>
-              </div>
-            )}
+
 
             <div className="px-4 py-2">
               {!isAuthenticated ? (
